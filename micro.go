@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 )
 
@@ -19,7 +18,7 @@ type jsonMessage struct {
 
 type jsonEnregistrement struct {
 	Name string `json:"name"`
-	Key  int64  `json:"key"`
+	// Key  int64  `json:"key"`
 }
 
 func appelip() {
@@ -42,29 +41,23 @@ func appelip() {
 		}
 	}
 
-	//envoie post
-	m := jsonEnregistrement{"harmo", 0}
+	m := jsonEnregistrement{"harmo"}
 	jsonValue, _ := json.Marshal(m)
 	repPost, err := http.Post("https://jch.irif.fr:8443/register", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
 		log.Fatal(err)
 	}
-	if debug {
-		// var res map[string]interface{}
-		// json.NewDecoder(repPost.Body).Decode(&res)
-		// fmt.Println(res["json"])
-		fmt.Println(repPost)
-	}
+	fmt.Println(repPost.StatusCode)
 
-	//connexion
-	for i := 0; i < len(message); i++ {
-		addrconn := fmt.Sprintf("%s:%d", message[i].Host, message[i].Port)
-		conn, err := net.Dial("udp", addrconn)
-		if err != nil {
-			log.Fatal(err)
-		}
+	// //connexion
+	// for i := 0; i < len(message); i++ {
+	// 	addrconn := fmt.Sprintf("%s:%d", message[i].Host, message[i].Port)
+	// 	conn, err := net.Dial("udp", addrconn)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
 
-	}
+	// }
 
 }
 
