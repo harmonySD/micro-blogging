@@ -12,6 +12,7 @@ import (
 )
 
 var debug = true
+var debugF = false
 var idMess = 0
 
 type jsonMessage struct {
@@ -75,7 +76,7 @@ func rempMess(username string, typMess int) []byte {
 		i++
 		k++
 	}
-	if debug {
+	if debugF {
 		fmt.Println("le mess dans rempMEss ", buf)
 	}
 	return buf
@@ -101,7 +102,8 @@ func appelip() {
 		}
 	}
 
-	m := jsonEnregistrement{"h"}
+	name := "sarah"
+	m := jsonEnregistrement{name}
 	jsonValue, _ := json.Marshal(m)
 	repPost, err := http.Post("https://jch.irif.fr:8443/register", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
@@ -109,77 +111,88 @@ func appelip() {
 	}
 	fmt.Println(repPost.StatusCode)
 
-	//connexion
-	//username
-	//userbyte := []byte("h")
+	bufE := rempMess(name, 0)
+	if debug {
+		fmt.Println("le mess dans bufE ", bufE)
+	}
 
-	for i := 0; i < len(message); i++ {
-		bufE := rempMess("i", 0)
+	port := fmt.Sprintf(":%d", message[0].Port)
+	if debug {
+		fmt.Printf("port : %s\n", port)
+	}
+	// adr1, err := net.ResolveUDPAddr("udp", addrconn)
+	// conn, err := net.ListenUDP("udp", adr1)
+	conn, err := net.ListenPacket("udp", port)
+	if err != nil {
+		fmt.Printf("listen\n")
+		log.Fatal(err)
+	}
+	// defer conn.Close() peut etre inutile
+	//enfaite juste envoyer les writeto et rcvfom avec soit adress ipv6 ou adress ipv4
+	for i := 0; i < len(message)-1; i++ {
+		fmt.Printf("\n\ndebut boucle\n")
+		addrconn := fmt.Sprintf("%s:%d", message[i].Host, message[i].Port)
+		adr2, err := net.ResolveUDPAddr("udp", addrconn)
 		if debug {
-			fmt.Println("le mess dans bufE ", bufE)
+			fmt.Printf("addrconn %s \n", addrconn)
 		}
 
-		// bufE := make([]byte, 14) //1é + 1 pour usename
-		// bufE[0] = 0
-		// bufE[1] = 0
-		// bufE[2] = 0
-		// bufE[3] = 1
-		// bufE[4] = 0 // type 0
-		// bufE[5] = 0
-		// bufE[6] = 6 //length
-		// bufE[7] = 0
-		// bufE[8] = 0 //flags
-		// bufE[9] = 0 //flag count d
-		// bufE[10] = 0
-		// bufE[11] = 1
-		// bufE[12] = userbyte[0] //username
-		fmt.Println(bufE)
-
-		addrconn := fmt.Sprintf("%v:%v", message[i].Host, message[i].Port)
-		port := fmt.Sprintf(":%d", message[i].Port)
-		if debug {
-			fmt.Printf("%s\n", addrconn)
-		}
-		// adr1, err := net.ResolveUDPAddr("udp", addrconn)
-		// conn, err := net.ListenUDP("udp", adr1)
-		conn, err := net.ListenPacket("udp", port)
-		if err != nil {
-			fmt.Printf("listen\n")
-			log.Fatal(err)
-		}
-		// defer conn.Close() peut etre inutile
-		//enfaite juste envoyer les writeto et rcvfom avec soit adress ipv6 ou adress ipv4
-
-		dst, err := net.ResolveUDPAddr("udp", addrconn)
-		if err != nil {
-			log.Fatal(err)
-		}
-		n, err := conn.WriteTo(bufE, dst)
+		_, err = conn.WriteTo(bufE, adr2)
 		if err != nil {
 			fmt.Printf("write\n")
 			log.Fatal(err)
 		}
-
 		if debug {
-			fmt.Println(n)
+			// fmt.Printf("write\n")
+			fmt.Printf("hello envoye\n")
 		}
 
-		bufR := make([]byte, 256)
+		for {
+			fmt.Printf("\n\n\nwhile\n")
+			bufR := make([]byte, 256)
 
-		n, _, err = conn.ReadFrom(bufR)
-		if err != nil {
-			fmt.Printf("read\n")
-			log.Fatal(err)
+			_, _, err = conn.ReadFrom(bufR)
+			if err != nil {
+				fmt.Printf("read\n")
+				log.Fatal(err)
+			}
+			if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+				fmt.Printf("helloReply\n")
+				if debug {
+					fmt.Println("le mess dans bufR ", bufR)
+				}
+			}
+			if bufR[4] == 0 {
+				fmt.Printf("hello\n")
+				if debug {
+					fmt.Println("le mess dans bufR ", bufR)
+				}
+				bufE := rempMess("", 128)
+				if debug {
+					fmt.Println("le mess dans bufE ", bufE)
+				}
+				_, err = conn.WriteTo(bufE, adr2)
+				if err != nil {
+					fmt.Printf("write\n")
+					log.Fatal(err)
+				}
+				if debug {
+					fmt.Printf("helloReply envoye\n")
+				}
+				break
+			}
+			if bufR[4] == 254 {
+				fmt.Printf("erreur\n")
+				fmt.Println(string(bufR[7:]))
+				break
+			}
 		}
-		if debug {
-			fmt.Println(n)
-			fmt.Println(bufR)
-		}
-
+		defer conn.Close()
 	}
 
 }
 
 func main() {
 	appelip()
+
 }
