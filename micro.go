@@ -101,7 +101,7 @@ func appelip() {
 		}
 	}
 
-	m := jsonEnregistrement{"i"}
+	m := jsonEnregistrement{"h"}
 	jsonValue, _ := json.Marshal(m)
 	repPost, err := http.Post("https://jch.irif.fr:8443/register", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
@@ -111,28 +111,28 @@ func appelip() {
 
 	//connexion
 	//username
-	userbyte := []byte("i")
+	//userbyte := []byte("h")
 
 	for i := 0; i < len(message); i++ {
-		// bufE := rempMess("harmo", 0)
-		// if debug {
-		// 	fmt.Println("le mess dans bufE ", bufE)
-		// }
+		bufE := rempMess("i", 0)
+		if debug {
+			fmt.Println("le mess dans bufE ", bufE)
+		}
 
-		bufE := make([]byte, 14) //1é + 1 pour usename
-		bufE[0] = 0
-		bufE[1] = 0
-		bufE[2] = 0
-		bufE[3] = 1
-		bufE[4] = 0 // type 0
-		bufE[5] = 0
-		bufE[6] = 6 //length
-		bufE[7] = 0
-		bufE[8] = 0 //flags
-		bufE[9] = 0 //flag count d
-		bufE[10] = 0
-		bufE[11] = 1
-		bufE[12] = userbyte[0] //username
+		// bufE := make([]byte, 14) //1é + 1 pour usename
+		// bufE[0] = 0
+		// bufE[1] = 0
+		// bufE[2] = 0
+		// bufE[3] = 1
+		// bufE[4] = 0 // type 0
+		// bufE[5] = 0
+		// bufE[6] = 6 //length
+		// bufE[7] = 0
+		// bufE[8] = 0 //flags
+		// bufE[9] = 0 //flag count d
+		// bufE[10] = 0
+		// bufE[11] = 1
+		// bufE[12] = userbyte[0] //username
 		fmt.Println(bufE)
 
 		addrconn := fmt.Sprintf("%v:%v", message[i].Host, message[i].Port)
