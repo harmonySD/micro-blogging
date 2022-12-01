@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -14,6 +17,7 @@ import (
 var debug = true
 var debugF = false // fonction remplMess
 var debugP = false // fonction recherche de pair
+var debugH = true  // fonction hello et helloReply
 var idMess = 0
 
 type jsonMessage struct {
@@ -23,12 +27,12 @@ type jsonMessage struct {
 
 type jsonEnregistrement struct {
 	Name string `json:"name"`
-	// Key  int64  `json:"key"`
+	Key  []byte `json:"key"`
 }
 type jsonPeer struct {
 	Name     string        `json:"name"`
 	Addresse []jsonMessage `json:"addresses"`
-	// Key  int64  `json:"key"`
+	Key      string        `json:"key"`
 }
 
 func rempMess(username string, typMess int) []byte {
@@ -88,6 +92,84 @@ func rempMess(username string, typMess int) []byte {
 	return buf
 }
 
+// fonction qui envoie un helloreply apres avoir recu un hello
+func helloreply(addr net.Addr, bufR []byte) {
+	fmt.Printf("hello\n")
+	if debugH {
+		fmt.Println("le mess dans bufR ", bufR)
+	}
+	bufE := rempMess("", 128)
+	if debug {
+		fmt.Println("le mess dans bufE ", bufE)
+	}
+	address := addr.String()
+	conn, err := net.ListenPacket("udp", address)
+	if err != nil {
+		fmt.Printf("listen\n")
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	adr2, err := net.ResolveUDPAddr("udp", address)
+	_, err = conn.WriteTo(bufE, adr2)
+	if err != nil {
+		fmt.Printf("write\n")
+		log.Fatal(err)
+	}
+	if debug {
+		fmt.Printf("helloReply envoye\n")
+	}
+}
+
+// fonction qui envoie un hello et attend un helloreply
+func hello(name string, pair string) {
+	pairJson := chercherPair(pair)
+
+	fmt.Printf("hello\n")
+	addrconn := fmt.Sprintf("[%s]:%d", pairJson.Addresse[0].Host, pairJson.Addresse[0].Port)
+	conn, err := net.ListenPacket("udp", addrconn)
+	if err != nil {
+		fmt.Printf("listen\n")
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	bufE := rempMess(name, 0)
+	adr2, err := net.ResolveUDPAddr("udp", addrconn)
+	_, err = conn.WriteTo(bufE, adr2)
+	if err != nil {
+		fmt.Printf("write\n")
+		log.Fatal(err)
+	}
+	if debug {
+		fmt.Printf("hello envoye\n")
+	}
+
+	i := 1
+	for i == 1 {
+		bufR := make([]byte, 256)
+
+		_, _, err = conn.ReadFrom(bufR)
+		if err != nil {
+			fmt.Printf("read\n")
+			log.Fatal(err)
+		}
+		if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+			fmt.Printf("helloReply\n")
+			if debug {
+				fmt.Println("le mess dans bufR ", bufR)
+			}
+			i = 0
+		}
+		if bufR[4] == 254 {
+			fmt.Printf("erreur\n")
+			fmt.Println(string(bufR[7:]))
+			i = 0
+		}
+	}
+
+}
+
 func appelip() {
 	resp, err := http.Get("https://jch.irif.fr:8443/udp-address")
 	if err != nil {
@@ -109,13 +191,31 @@ func appelip() {
 	}
 
 	name := "sarah"
-	m := jsonEnregistrement{name}
-	jsonValue, _ := json.Marshal(m)
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	publicKey, _ := privateKey.Public().(*ecdsa.PublicKey)
+	formatted := make([]byte, 64)
+	publicKey.X.FillBytes(formatted[:32])
+	publicKey.Y.FillBytes(formatted[32:])
+
+	fmt.Printf("key : %d  %s \n\n", formatted, string(formatted))
+	// var key int64 = 0
+	m := jsonEnregistrement{name, formatted}
+	jsonValue, err := json.Marshal(m)
+	if err != nil {
+		fmt.Printf("marshal\n")
+		log.Fatal(err)
+	}
+	fmt.Println(m)
+	fmt.Println(jsonValue)
 	repPost, err := http.Post("https://jch.irif.fr:8443/register", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(repPost.StatusCode)
+	if repPost.StatusCode != 204 {
+		fmt.Printf("status\n")
+		log.Fatal("status")
+	}
 
 	bufE := rempMess(name, 0)
 	if debug {
@@ -207,6 +307,38 @@ func appelip() {
 		defer conn.Close()
 	}
 
+	// for {
+	// 	bufR := make([]byte, 256)
+	// 	_, addr, err := conn.ReadFrom(bufR)
+	// 	if err != nil {
+	// 		fmt.Printf("read\n")
+	// 		log.Fatal(err)
+	// 	}
+	// 	switch bufR[4] {
+	// 	case 0: // hello
+	// 		helloreply(addr, bufR)
+
+	// 	// case 128: // helloreply
+
+	// 	case 1: // root
+
+	// 	// case 129: //rootreply
+
+	// 	case 2: // getdatum
+
+	// 	// case 131: // nodatum
+
+	// 	// case 130: // datum
+
+	// 	case 254: //erreur
+	// 		fmt.Printf("erreur\n")
+	// 		fmt.Println(string(bufR[7:]))
+	// 		// break
+	// 	default:
+	// 		break
+	// 	}
+	// }
+
 }
 
 func chercherPairs() string {
@@ -252,12 +384,14 @@ func main() {
 	appelip()
 	fmt.Println()
 	liste := chercherPairs()
-	fmt.Printf("%s\n", liste)
-	pair := chercherPair("galene")
-	fmt.Printf("name : %s \n", pair.Name)
-	for i := 0; i < len(pair.Addresse); i++ {
-		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, message.Addresse[i].Port)
+	fmt.Printf("liste %s\n", liste)
+	if liste != "" {
+		pair := chercherPair("galene")
+		fmt.Printf("name : %s \n", pair.Name)
+		for i := 0; i < len(pair.Addresse); i++ {
+			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
+		}
 	}
 
 }
