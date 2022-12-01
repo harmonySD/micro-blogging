@@ -12,7 +12,8 @@ import (
 )
 
 var debug = true
-var debugF = false
+var debugF = false // fonction remplMess
+var debugP = false // fonction recherche de pair
 var idMess = 0
 
 type jsonMessage struct {
@@ -22,6 +23,11 @@ type jsonMessage struct {
 
 type jsonEnregistrement struct {
 	Name string `json:"name"`
+	// Key  int64  `json:"key"`
+}
+type jsonPeer struct {
+	Name     string        `json:"name"`
+	Addresse []jsonMessage `json:"addresses"`
 	// Key  int64  `json:"key"`
 }
 
@@ -114,6 +120,7 @@ func appelip() {
 	bufE := rempMess(name, 0)
 	if debug {
 		fmt.Println("le mess dans bufE ", bufE)
+		fmt.Println(string(bufE[7:]))
 	}
 
 	port := fmt.Sprintf(":%d", message[0].Port)
@@ -127,14 +134,23 @@ func appelip() {
 		fmt.Printf("listen\n")
 		log.Fatal(err)
 	}
-	// defer conn.Close() peut etre inutile
+	defer conn.Close() // peut etre inutile
 	//enfaite juste envoyer les writeto et rcvfom avec soit adress ipv6 ou adress ipv4
 	for i := 0; i < len(message)-1; i++ {
 		fmt.Printf("\n\ndebut boucle\n")
-		addrconn := fmt.Sprintf("%s:%d", message[i].Host, message[i].Port)
+		addrconn := fmt.Sprintf("[%s]:%d", message[i].Host, message[i].Port)
+		// adr3 := &net.UDPAddr{
+		// 	IP:   net.IP(message[i].Host),
+		// 	Port: int(message[i].Port)}
 		adr2, err := net.ResolveUDPAddr("udp", addrconn)
+		if err != nil {
+			fmt.Printf("resolve\n")
+			log.Fatal(err)
+		}
 		if debug {
 			fmt.Printf("addrconn %s \n", addrconn)
+			fmt.Printf("addrconn2 %s \n", adr2)
+			// fmt.Printf("addrconn3 %s \n", adr3)
 		}
 
 		_, err = conn.WriteTo(bufE, adr2)
@@ -148,7 +164,8 @@ func appelip() {
 		}
 
 		for {
-			fmt.Printf("\n\n\nwhile\n")
+			// fmt.Printf("\n\n\nwhile\n")
+			fmt.Printf("\n\n\n")
 			bufR := make([]byte, 256)
 
 			_, _, err = conn.ReadFrom(bufR)
@@ -192,7 +209,55 @@ func appelip() {
 
 }
 
+func chercherPairs() string {
+	resp, err := http.Get("https://jch.irif.fr:8443/peers")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+	if debugP {
+		fmt.Printf("%s\n", string(body))
+	}
+	liste := string(body)
+	return liste
+}
+func chercherPair(username string) jsonPeer {
+	addr := fmt.Sprintf("https://jch.irif.fr:8443/peers/%s", username)
+	resp, err := http.Get(addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+
+	var message jsonPeer
+	err = json.Unmarshal([]byte(body), &message)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if debugP {
+		fmt.Printf("name : %s \n", message.Name)
+		for i := 0; i < len(message.Addresse); i++ {
+			fmt.Printf("ip : %s \n port: %d\n", message.Addresse[i].Host, message.Addresse[i].Port)
+
+		}
+	}
+	return message
+}
+
 func main() {
 	appelip()
+	fmt.Println()
+	liste := chercherPairs()
+	fmt.Printf("%s\n", liste)
+	pair := chercherPair("galene")
+	fmt.Printf("name : %s \n", pair.Name)
+	for i := 0; i < len(pair.Addresse); i++ {
+		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, message.Addresse[i].Port)
+
+	}
 
 }
