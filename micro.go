@@ -103,11 +103,6 @@ func helloreply(adr net.Addr, bufR []byte, nameM string, conn net.PacketConn) {
 		fmt.Printf("hello\n")
 		fmt.Println("le mess dans bufR ", bufR)
 	}
-	// lenName := int(bufR[11])
-	// name := string(bufR[12:lenName])
-	// if debugH {
-	// 	fmt.Println("taille %d, name %s ", lenName, name)
-	// }
 	//remplir pour un message avec NOTRE id type 128 et le bufrecu du hello
 	bufE := rempMess(nameM, 128, bufR)
 	if debug {
@@ -127,7 +122,8 @@ func helloreply(adr net.Addr, bufR []byte, nameM string, conn net.PacketConn) {
 }
 
 // fonction qui envoie un hello et attend un helloreply
-func hello(name string, addrconn string, conn net.PacketConn) {
+// si forServeur ==1 cets quon est dan sle cas handshake serveur
+func handshake(name string, addrconn string, conn net.PacketConn, forServeur int) {
 	if debugH {
 		fmt.Printf("hello\n")
 	}
@@ -140,7 +136,6 @@ func hello(name string, addrconn string, conn net.PacketConn) {
 		fmt.Printf("addrconn %s \n", addrconn)
 		fmt.Printf("addrconn2 %s \n ", addr2)
 	}
-
 	//preparation message bufE ENVOYE HELLO
 	buf := make([]byte, 1)
 	bufE := rempMess(name, 0, buf)
@@ -156,10 +151,10 @@ func hello(name string, addrconn string, conn net.PacketConn) {
 	if debugH {
 		fmt.Printf("hello envoye !\n")
 	}
-
 	//attente du helloreply ATTENTION GERER RTT
-	brk := 0
-	for brk == 0 {
+	brk1 := 0
+	brk2 := 0
+	for brk1 != 1 || brk2 != 1 {
 		if debugH {
 			fmt.Printf("\n\n\n")
 		}
@@ -175,8 +170,11 @@ func hello(name string, addrconn string, conn net.PacketConn) {
 			if debugH {
 				fmt.Printf("helloreply\n")
 				fmt.Println("le mess dasn bufR ", bufR)
-				helloreply(addr2, bufR, name, conn)
-				brk += 1
+				brk1 += 1
+				//si forServeur ==1 cets quon est dan sle cas handshake serveur
+				if forServeur != 1 {
+					brk2 += 1
+				}
 			}
 		}
 		if bufR[4] == 254 {
@@ -185,11 +183,17 @@ func hello(name string, addrconn string, conn net.PacketConn) {
 				fmt.Println(string(bufR[7:]))
 			}
 		}
+		if bufR[4] == 0 {
+			helloreply(addr2, bufR, name, conn)
+			brk2 += 1
+		}
+		if brk1 > 2 || brk2 > 2 {
+			fmt.Printf("PROBLEME HANDSHAKE\n")
+		}
 	}
 }
 
 func appelip() {
-
 	// recherche adresse du serveur
 	resp, err := http.Get("https://jch.irif.fr:8443/udp-address")
 	if err != nil {
@@ -239,98 +243,26 @@ func appelip() {
 		fmt.Printf("status\n")
 		log.Fatal("status")
 	}
-
 	// ecoute sur port en udp
-	port := ":4489"
+	port := ":4486"
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
-
 	conn, err := net.ListenPacket("udp", port)
 	if err != nil {
 		fmt.Printf("listen\n")
 		log.Fatal(err)
 	}
 	defer conn.Close() // peut etre inutile
-	// helloServeur(name, conn, message)
 
-	// handshake
-	// buf := make([]byte, 1)
-	// bufE := rempMess(name, 0, buf)
-	// if debug {
-	// 	fmt.Println("le mess dans bufE ", bufE)
-	// 	fmt.Println(string(bufE[7:]))
-	// }
-
-	//enfaite juste envoyer les writeto et rcvfom avec soit adress ipv6 ou adress ipv4
+	//handshake avec le serveur
 	for i := 0; i < len(message)-1; i++ {
 		fmt.Printf("\n\ndebut boucle\n")
 		addrconn := fmt.Sprintf("[%s]:%d", message[i].Host, message[i].Port)
-		//appel hello
-		hello(name, addrconn, conn)
-
-		// adr2, err := net.ResolveUDPAddr("udp", addrconn)
-		// if err != nil {
-		// 	fmt.Printf("resolve\n")
-		// 	log.Fatal(err)
-		// }
-		// if debug {
-		// 	fmt.Printf("addrconn %s \n", addrconn)
-		// 	fmt.Printf("addrconn2 %s \n", adr2)
-		// }
-
-		// _, err = conn.WriteTo(bufE, adr2)
-		// if err != nil {
-		// 	fmt.Printf("write\n")
-		// 	log.Fatal(err)
-		// }
-		// if debug {
-		// 	// fmt.Printf("write\n")
-		// 	fmt.Printf("hello envoye\n")
-		// }
-
-		// for {
-		// 	// fmt.Printf("\n\n\nwhile\n")
-		// 	fmt.Printf("\n\n\n")
-		// 	bufR := make([]byte, 256)
-
-		// 	_, _, err = conn.ReadFrom(bufR)
-		// 	if err != nil {
-		// 		fmt.Printf("read\n")
-		// 		log.Fatal(err)
-		// }
-		// if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
-		// 	fmt.Printf("helloReply\n")
-		// 	if debug {
-		// 		fmt.Println("le mess dans bufR ", bufR)
-		// 	}
-		// }
-		// if bufR[4] == 0 {
-		// 	fmt.Printf("hello\n")
-		// 	if debug {
-		// fmt.Println("le mess dans bufR ", bufR)
-		// }
-		// bufE := rempMess(name, 128, bufR)
-		// if debug {
-		// 	fmt.Println("le mess dans bufE ", bufE)
-		// }
-		// _, err = conn.WriteTo(bufE, adr2)
-		// if err != nil {
-		// 	fmt.Printf("write\n")
-		// 	log.Fatal(err)
-		// }
-		// if debug {
-		// 			fmt.Printf("helloReply envoye\n")
-		// 		}
-		// 		break
-		// 	}
-		// 	if bufR[4] == 254 {
-		// 		fmt.Printf("erreur\n")
-		// 		fmt.Println(string(bufR[7:]))
-		// 		break
-		// 	}
-		// }
-		defer conn.Close()
+		//envoie hello et dedans appel helloreply si recoit hello du retour sort quand a recu le helloreply
+		//du serveur plus envoyer hello reply au serveur
+		//si forServeur ==1 cets quon est dan sle cas handshake serveur
+		handshake(name, addrconn, conn, 1)
 	}
 
 	// for {
