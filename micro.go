@@ -2,9 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -27,7 +24,7 @@ type jsonMessage struct {
 
 type jsonEnregistrement struct {
 	Name string `json:"name"`
-	Key  []byte `json:"key"`
+	// Key  []byte `json:"key"`
 }
 type jsonPeer struct {
 	Name     string        `json:"name"`
@@ -35,7 +32,7 @@ type jsonPeer struct {
 	Key      string        `json:"key"`
 }
 
-func rempMess(username string, typMess int) []byte {
+func rempMess(username string, typMess int, bufR []byte) []byte {
 	userbyte := []byte(username)
 	userlength := len(userbyte)
 
@@ -44,16 +41,21 @@ func rempMess(username string, typMess int) []byte {
 	buflen := 4 + 1 + 2 + 1 + 3 + 1 + userlength
 	buf := make([]byte, buflen)
 
-	// //generation id
-	idMess += 1
-	idMessbyte := make([]byte, 4)
-	binary.BigEndian.PutUint32(idMessbyte, uint32(idMess))
 	var i int
-	k := 0
-	for i = 0; i < 4; i++ {
-		buf[i] = idMessbyte[k]
-		k++
+	if typMess == 0 {
+		// //generation id
+		idMess += 1
+		idMessbyte := make([]byte, 4)
+		binary.BigEndian.PutUint32(idMessbyte, uint32(idMess))
+		for i = 0; i < 4; i++ {
+			buf[i] = idMessbyte[i]
+		}
+	} else if typMess == 128 {
+		for i = 0; i < 4; i++ {
+			buf[i] = bufR[i]
+		}
 	}
+
 	j := i
 	buf[i] = byte(typMess)
 	i++
@@ -63,7 +65,7 @@ func rempMess(username string, typMess int) []byte {
 	lenghtbyte := make([]byte, 2)
 	binary.BigEndian.PutUint16(lenghtbyte, uint16(lenght))
 	j = i
-	k = 0
+	k := 0
 	for i < j+2 {
 		buf[i] = lenghtbyte[k]
 		i++
@@ -93,23 +95,32 @@ func rempMess(username string, typMess int) []byte {
 }
 
 // fonction qui envoie un helloreply apres avoir recu un hello
-func helloreply(addr net.Addr, bufR []byte) {
+func helloreply(bufR []byte) {
 	fmt.Printf("hello\n")
 	if debugH {
 		fmt.Println("le mess dans bufR ", bufR)
 	}
-	bufE := rempMess("", 128)
+	lenName := int(bufR[11])
+	name := string(bufR[12:lenName])
+	if debugH {
+		fmt.Println("taille %d, name %s ", lenName, name)
+	}
+	buf := make([]byte, 1)
+	bufE := rempMess("", 128, buf)
 	if debug {
 		fmt.Println("le mess dans bufE ", bufE)
 	}
-	address := addr.String()
-	conn, err := net.ListenPacket("udp", address)
+
+	pairJson := chercherPair(name)
+	port := fmt.Sprint(pairJson.Addresse[0].Port)
+	conn, err := net.ListenPacket("udp", port)
 	if err != nil {
 		fmt.Printf("listen\n")
 		log.Fatal(err)
 	}
 	defer conn.Close()
 
+	address := fmt.Sprintf("[%s]:%d", pairJson.Addresse[0].Host, pairJson.Addresse[0].Port)
 	adr2, err := net.ResolveUDPAddr("udp", address)
 	_, err = conn.WriteTo(bufE, adr2)
 	if err != nil {
@@ -121,20 +132,38 @@ func helloreply(addr net.Addr, bufR []byte) {
 	}
 }
 
+// func helloreplyServeur(bufR []byte, conn net.PacketConn, name string) {
+
+// 	bufE := rempMess(name, 128, bufR)
+// 	if debug {
+// 		fmt.Println("le mess dans bufE ", bufE)
+// 	}
+// 	_, err := conn.WriteTo(bufE, adr2)
+// 	if err != nil {
+// 		fmt.Printf("write\n")
+// 		log.Fatal(err)
+// 	}
+// 	if debug {
+// 		fmt.Printf("helloReply envoye\n")
+// 	}
+// }
+
 // fonction qui envoie un hello et attend un helloreply
 func hello(name string, pair string) {
 	pairJson := chercherPair(pair)
 
 	fmt.Printf("hello\n")
+	port := fmt.Sprintf(":%d", pairJson.Addresse[0].Port)
 	addrconn := fmt.Sprintf("[%s]:%d", pairJson.Addresse[0].Host, pairJson.Addresse[0].Port)
-	conn, err := net.ListenPacket("udp", addrconn)
+	conn, err := net.ListenPacket("udp", port)
 	if err != nil {
 		fmt.Printf("listen\n")
 		log.Fatal(err)
 	}
 	defer conn.Close()
 
-	bufE := rempMess(name, 0)
+	buf := make([]byte, 1)
+	bufE := rempMess(name, 0, buf)
 	adr2, err := net.ResolveUDPAddr("udp", addrconn)
 	_, err = conn.WriteTo(bufE, adr2)
 	if err != nil {
@@ -167,6 +196,105 @@ func hello(name string, pair string) {
 			i = 0
 		}
 	}
+}
+
+// fonction qui envoie un hello et attend un helloreply
+func helloServeur(name string, conn net.PacketConn, message []jsonMessage) {
+	buf := make([]byte, 1)
+	bufE := rempMess(name, 0, buf)
+	//enfaite juste envoyer les writeto et rcvfom avec soit adress ipv6 ou adress ipv4
+	for i := 0; i < len(message)-1; i++ {
+		fmt.Printf("\n\ndebut boucle\n")
+		addrconn := fmt.Sprintf("[%s]:%d", message[i].Host, message[i].Port)
+		// adr3 := &net.UDPAddr{
+		// 	IP:   net.IP(message[i].Host),
+		// 	Port: int(message[i].Port)}
+		adr2, err := net.ResolveUDPAddr("udp", addrconn)
+		if err != nil {
+			fmt.Printf("resolve\n")
+			log.Fatal(err)
+		}
+		if debug {
+			fmt.Printf("addrconn %s \n", addrconn)
+			fmt.Printf("addrconn2 %s \n", adr2)
+			// fmt.Printf("addrconn3 %s \n", adr3)
+		}
+
+		_, err = conn.WriteTo(bufE, adr2)
+		if err != nil {
+			fmt.Printf("write\n")
+			log.Fatal(err)
+		}
+		if debug {
+			// fmt.Printf("write\n")
+			fmt.Printf("hello envoye\n")
+		}
+		i := 1
+		// for i == 1 {
+		// 	bufR := make([]byte, 256)
+
+		// 	_, _, err = conn.ReadFrom(bufR)
+		// 	if err != nil {
+		// 		fmt.Printf("read\n")
+		// 		log.Fatal(err)
+		// 	}
+		// 	if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+		// 		fmt.Printf("helloReply\n")
+		// 		if debug {
+		// 			fmt.Println("le mess dans bufR ", bufR)
+		// 		}
+		// 		i = 0
+		// 	}
+		// 	if bufR[4] == 254 {
+		// 		fmt.Printf("erreur\n")
+		// 		fmt.Println(string(bufR[7:]))
+		// 		i = 0
+		// 	}
+		// }
+		for i == 1 {
+			// fmt.Printf("\n\n\nwhile\n")
+			fmt.Printf("\n\n\n")
+			bufR := make([]byte, 256)
+
+			_, _, err = conn.ReadFrom(bufR)
+			if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+				fmt.Printf("helloReply\n")
+				if debug {
+					fmt.Println("le mess dans bufR ", bufR)
+				}
+
+			}
+			if err != nil {
+				fmt.Printf("read\n")
+				log.Fatal(err)
+			}
+			if bufR[4] == 0 {
+				fmt.Printf("hello\n")
+				if debug {
+					fmt.Println("le mess dans bufR ", bufR)
+				}
+				bufE := rempMess(name, 128, bufR)
+				if debug {
+					fmt.Println("le mess dans bufE ", bufE)
+				}
+				_, err = conn.WriteTo(bufE, adr2)
+				if err != nil {
+					fmt.Printf("write\n")
+					log.Fatal(err)
+				}
+				if debug {
+					fmt.Printf("helloReply envoye\n")
+				}
+				i = 0
+			}
+			if bufR[4] == 254 {
+				fmt.Printf("erreur\n")
+				fmt.Println(string(bufR[7:]))
+				i = 0
+			}
+		}
+
+	}
 
 }
 
@@ -191,15 +319,15 @@ func appelip() {
 	}
 
 	name := "sarah"
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	publicKey, _ := privateKey.Public().(*ecdsa.PublicKey)
-	formatted := make([]byte, 64)
-	publicKey.X.FillBytes(formatted[:32])
-	publicKey.Y.FillBytes(formatted[32:])
+	// privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	// publicKey, _ := privateKey.Public().(*ecdsa.PublicKey)
+	// formatted := make([]byte, 64)
+	// publicKey.X.FillBytes(formatted[:32])
+	// publicKey.Y.FillBytes(formatted[32:])
 
-	fmt.Printf("key : %d  %s \n\n", formatted, string(formatted))
+	// fmt.Printf("key : %d  %s \n\n", formatted, string(formatted))
 	// var key int64 = 0
-	m := jsonEnregistrement{name, formatted}
+	m := jsonEnregistrement{Name: name}
 	jsonValue, err := json.Marshal(m)
 	if err != nil {
 		fmt.Printf("marshal\n")
@@ -217,24 +345,29 @@ func appelip() {
 		log.Fatal("status")
 	}
 
-	bufE := rempMess(name, 0)
+	buf := make([]byte, 1)
+	bufE := rempMess(name, 0, buf)
 	if debug {
 		fmt.Println("le mess dans bufE ", bufE)
 		fmt.Println(string(bufE[7:]))
 	}
 
-	port := fmt.Sprintf(":%d", message[0].Port)
+	port := ":4488"
+	// port := fmt.Sprintf(":%d", message[0].Port)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
 	// adr1, err := net.ResolveUDPAddr("udp", addrconn)
 	// conn, err := net.ListenUDP("udp", adr1)
+
 	conn, err := net.ListenPacket("udp", port)
 	if err != nil {
 		fmt.Printf("listen\n")
 		log.Fatal(err)
 	}
 	defer conn.Close() // peut etre inutile
+	// helloServeur(name, conn, message)
+
 	//enfaite juste envoyer les writeto et rcvfom avec soit adress ipv6 ou adress ipv4
 	for i := 0; i < len(message)-1; i++ {
 		fmt.Printf("\n\ndebut boucle\n")
@@ -284,7 +417,7 @@ func appelip() {
 				if debug {
 					fmt.Println("le mess dans bufR ", bufR)
 				}
-				bufE := rempMess("", 128)
+				bufE := rempMess(name, 128, bufR)
 				if debug {
 					fmt.Println("le mess dans bufE ", bufE)
 				}
@@ -385,13 +518,14 @@ func main() {
 	fmt.Println()
 	liste := chercherPairs()
 	fmt.Printf("liste %s\n", liste)
-	if liste != "" {
-		pair := chercherPair("galene")
-		fmt.Printf("name : %s \n", pair.Name)
-		for i := 0; i < len(pair.Addresse); i++ {
-			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+	// if liste != "" {
+	// 	pair := chercherPair("Ju")
+	// 	fmt.Printf("name : %s \n", pair.Name)
+	// 	for i := 0; i < len(pair.Addresse); i++ {
+	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
-		}
-	}
+	// 	}
+	// }
+	// hello("sarah", "Ju")
 
 }
