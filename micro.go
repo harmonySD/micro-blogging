@@ -95,9 +95,9 @@ func rempMess(username string, typMess int, bufR []byte) []byte {
 }
 
 // fonction qui envoie un helloreply apres avoir recu un hello
-func helloreply(bufR []byte) {
-	fmt.Printf("hello\n")
+func helloreply(adr net.Addr, bufR []byte, nameM string, conn net.PacketConn) {
 	if debugH {
+		fmt.Printf("hello\n")
 		fmt.Println("le mess dans bufR ", bufR)
 	}
 	lenName := int(bufR[11])
@@ -105,22 +105,13 @@ func helloreply(bufR []byte) {
 	if debugH {
 		fmt.Println("taille %d, name %s ", lenName, name)
 	}
-	buf := make([]byte, 1)
-	bufE := rempMess("", 128, buf)
+
+	bufE := rempMess(nameM, 128, bufR)
 	if debug {
 		fmt.Println("le mess dans bufE ", bufE)
 	}
 
-	pairJson := chercherPair(name)
-	port := fmt.Sprint(pairJson.Addresse[0].Port)
-	conn, err := net.ListenPacket("udp", port)
-	if err != nil {
-		fmt.Printf("listen\n")
-		log.Fatal(err)
-	}
-	defer conn.Close()
-
-	address := fmt.Sprintf("[%s]:%d", pairJson.Addresse[0].Host, pairJson.Addresse[0].Port)
+	address := adr.String()
 	adr2, err := net.ResolveUDPAddr("udp", address)
 	_, err = conn.WriteTo(bufE, adr2)
 	if err != nil {
@@ -299,6 +290,8 @@ func helloServeur(name string, conn net.PacketConn, message []jsonMessage) {
 }
 
 func appelip() {
+
+	// recherche adresse du serveur
 	resp, err := http.Get("https://jch.irif.fr:8443/udp-address")
 	if err != nil {
 		log.Fatal(err)
@@ -318,6 +311,7 @@ func appelip() {
 		}
 	}
 
+	// enregistrement dans le serveur
 	name := "sarah"
 	// privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	// publicKey, _ := privateKey.Public().(*ecdsa.PublicKey)
@@ -345,20 +339,11 @@ func appelip() {
 		log.Fatal("status")
 	}
 
-	buf := make([]byte, 1)
-	bufE := rempMess(name, 0, buf)
-	if debug {
-		fmt.Println("le mess dans bufE ", bufE)
-		fmt.Println(string(bufE[7:]))
-	}
-
-	port := ":4488"
-	// port := fmt.Sprintf(":%d", message[0].Port)
+	// ecoute sur port en udp
+	port := ":4489"
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
-	// adr1, err := net.ResolveUDPAddr("udp", addrconn)
-	// conn, err := net.ListenUDP("udp", adr1)
 
 	conn, err := net.ListenPacket("udp", port)
 	if err != nil {
@@ -368,13 +353,18 @@ func appelip() {
 	defer conn.Close() // peut etre inutile
 	// helloServeur(name, conn, message)
 
+	// handshake
+	buf := make([]byte, 1)
+	bufE := rempMess(name, 0, buf)
+	if debug {
+		fmt.Println("le mess dans bufE ", bufE)
+		fmt.Println(string(bufE[7:]))
+	}
+
 	//enfaite juste envoyer les writeto et rcvfom avec soit adress ipv6 ou adress ipv4
 	for i := 0; i < len(message)-1; i++ {
 		fmt.Printf("\n\ndebut boucle\n")
 		addrconn := fmt.Sprintf("[%s]:%d", message[i].Host, message[i].Port)
-		// adr3 := &net.UDPAddr{
-		// 	IP:   net.IP(message[i].Host),
-		// 	Port: int(message[i].Port)}
 		adr2, err := net.ResolveUDPAddr("udp", addrconn)
 		if err != nil {
 			fmt.Printf("resolve\n")
@@ -383,7 +373,6 @@ func appelip() {
 		if debug {
 			fmt.Printf("addrconn %s \n", addrconn)
 			fmt.Printf("addrconn2 %s \n", adr2)
-			// fmt.Printf("addrconn3 %s \n", adr3)
 		}
 
 		_, err = conn.WriteTo(bufE, adr2)
@@ -449,7 +438,7 @@ func appelip() {
 	// 	}
 	// 	switch bufR[4] {
 	// 	case 0: // hello
-	// 		helloreply(addr, bufR)
+	// 		helloreply(addr, bufR, name, conn)
 
 	// 	// case 128: // helloreply
 
@@ -518,14 +507,14 @@ func main() {
 	fmt.Println()
 	liste := chercherPairs()
 	fmt.Printf("liste %s\n", liste)
-	// if liste != "" {
-	// 	pair := chercherPair("Ju")
-	// 	fmt.Printf("name : %s \n", pair.Name)
-	// 	for i := 0; i < len(pair.Addresse); i++ {
-	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+	if liste != "" {
+		pair := chercherPair("sarah")
+		fmt.Printf("name : %s \n", pair.Name)
+		for i := 0; i < len(pair.Addresse); i++ {
+			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
-	// 	}
-	// }
+		}
+	}
 	// hello("sarah", "Ju")
 
 }
