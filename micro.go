@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,9 @@ var debug = false
 var debugF = false // fonction remplMess
 var debugP = false // fonction recherche de pair
 var debugH = true  // fonction hello et helloReply
+var debugA = false // fonction arbre de Merkle
 var idMess = 0
+var a arbreMerkle
 
 type jsonMessage struct {
 	Host string `json:"ip"`
@@ -32,6 +35,121 @@ type jsonPeer struct {
 	Name     string        `json:"name"`
 	Addresse []jsonMessage `json:"addresses"`
 	Key      string        `json:"key"`
+}
+
+// arbre de Merkle
+type noeud struct {
+	value  []byte
+	gauche *noeud //left
+	droit  *noeud //right
+}
+type arbreMerkle struct {
+	racine *noeud
+}
+
+func initialisationArbre() {
+	a.racine = nil
+}
+func ajoutMess(mess string, rep []byte) {
+	message := rempMessArbre(mess, rep)
+	if debugA {
+		fmt.Println("\n\nmessage", message)
+		fmt.Println()
+	}
+	nv := noeud{message, nil, nil}
+	if a.racine == nil { // racine vide
+		a.racine = &nv
+	} else { // ajout message  normal
+		hashNoeud := rempNoeudArbre(a.racine, &nv)
+		rac := noeud{hashNoeud, a.racine, &nv}
+		a.racine = &rac
+	}
+}
+
+func affichageArbre() {
+	affichageNoeud(a.racine)
+	fmt.Printf("\n\n")
+}
+func affichageNoeud(n *noeud) {
+	if n == nil {
+		fmt.Printf("Vide\n")
+	} else {
+		if n.value[0] == 0 {
+			// fmt.Println(n.value)
+			fmt.Println(string(n.value[(1 + 4 + 32 + 2):]))
+
+		} else {
+			affichageNoeud(n.gauche)
+			affichageNoeud(n.droit)
+		}
+	}
+
+}
+
+// https://tech-wiki.online/fr/golang-data-structure-binary-search-tree.html
+
+func rempNoeudArbre(gauche *noeud, droit *noeud) []byte {
+	lenNoeud := 1 + 32 + 32
+	buf := make([]byte, lenNoeud)
+
+	hg := sha256.Sum256(gauche.value)
+	hd := sha256.Sum256(gauche.value)
+	buf[0] = 1
+	k := 32
+	for i := 0; i < 32; i++ {
+		buf[i+1] = hg[i]
+		buf[i+1+k] = hd[i]
+	}
+
+	return buf
+}
+
+// mess : le message
+// rep le hash du message auquel on repond, vide si pas de reponse
+func rempMessArbre(mess string, rep []byte) []byte {
+	messbyte := []byte(mess)
+	messlength := len(messbyte)
+	lenMess := 1 + 4 + 32 + 2 + messlength
+	buf := make([]byte, lenMess)
+
+	buf[0] = 0
+	now := time.Now()
+	janvier := time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)
+	date := now.Sub(janvier)
+	sec := date.Seconds()
+	if debugA {
+		fmt.Printf("date %v\nsec%v\n", date, sec)
+	}
+	secbyte := make([]byte, 4)
+	binary.BigEndian.PutUint32(secbyte, uint32(sec))
+	k := 1
+	for i := 0; i < 4; i++ {
+		buf[i+k] = secbyte[i]
+	}
+	k += 4
+	if len(rep) != 0 {
+		for i := 0; i < 32; i++ {
+			buf[i+k] = rep[i]
+		}
+	} else {
+		for i := 0; i < 32; i++ {
+			buf[i+k] = 0
+		}
+	}
+	k += 32
+	lenghtbyte := make([]byte, 2)
+	binary.BigEndian.PutUint16(lenghtbyte, uint16(messlength))
+	for i := 0; i < 2; i++ {
+		buf[i+k] = lenghtbyte[i]
+	}
+	k += 2
+	for i := 0; i < messlength; i++ {
+		buf[i+k] = messbyte[i]
+	}
+	if debugA {
+		fmt.Println("Message arbre ", buf)
+	}
+	return buf
 }
 
 func rempMess(username string, typMess int, bufR []byte) []byte {
@@ -358,19 +476,31 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
-	name := "test"
-	// appelip(name)
-	fmt.Println()
-	liste := chercherPairs()
-	fmt.Printf("liste : %s\n", liste)
-	if liste != "" {
-		pair := chercherPair(name)
-		fmt.Printf("name : %s \n", pair.Name)
-		for i := 0; i < len(pair.Addresse); i++ {
-			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+	// name := "test"
+	// // appelip(name)
+	// fmt.Println()
+	// liste := chercherPairs()
+	// fmt.Printf("liste : %s\n", liste)
+	// if liste != "" {
+	// 	pair := chercherPair(name)
+	// 	fmt.Printf("name : %s \n", pair.Name)
+	// 	for i := 0; i < len(pair.Addresse); i++ {
+	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
-		}
-	}
+	// 	}
+	// }
 	// hello(name, "Ju")
 
+	initialisationArbre()
+	affichageArbre()
+	test := make([]byte, 256)
+	// buf := rempMessArbre("coucou", test)
+	// fmt.Println(buf)
+
+	ajoutMess("coucou", test)
+	affichageArbre()
+	ajoutMess("bonjour", test)
+	affichageArbre()
+	ajoutMess("salut", test)
+	affichageArbre()
 }
