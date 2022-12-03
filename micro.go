@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
+	"time"
 )
 
-var debug = true
+var debug = false
 var debugF = false // fonction remplMess
 var debugP = false // fonction recherche de pair
 var debugH = true  // fonction hello et helloReply
@@ -59,8 +61,8 @@ func rempMess(username string, typMess int, bufR []byte) []byte {
 	j := i
 	buf[i] = byte(typMess)
 	i++
-	//5 -> flags (1) flagscontd(3) usernamelength(1)
-	//ATTENTION MANQUE SIGNATURE
+	// 5 -> flags (1) flagscontd(3) usernamelength(1)
+	// ATTENTION MANQUE SIGNATURE
 	lenght := 5 + userlength
 	lenghtbyte := make([]byte, 2)
 	binary.BigEndian.PutUint16(lenghtbyte, uint16(lenght))
@@ -71,7 +73,7 @@ func rempMess(username string, typMess int, bufR []byte) []byte {
 		i++
 		k++
 	}
-	//FLags et flags contd
+	// Flags et flags contd
 	j = i
 	k = 0
 	for i < j+4 {
@@ -79,10 +81,10 @@ func rempMess(username string, typMess int, bufR []byte) []byte {
 		i++
 		k++
 	}
-	//username length
+	// username length
 	buf[i] = byte(userlength)
 	i++
-	//username
+	// username
 	j = i
 	k = 0
 	for i < j+userlength {
@@ -90,7 +92,7 @@ func rempMess(username string, typMess int, bufR []byte) []byte {
 		i++
 		k++
 	}
-	//continueer avec la key
+	// continueer avec la key
 	if debugF {
 		fmt.Println("le mess dans rempMEss ", buf)
 	}
@@ -103,12 +105,12 @@ func helloreply(adr net.Addr, bufR []byte, nameM string, conn net.PacketConn) {
 		fmt.Printf("hello\n")
 		fmt.Println("le mess dans bufR ", bufR)
 	}
-	//remplir pour un message avec NOTRE id type 128 et le bufrecu du hello
+	// remplir pour un message avec NOTRE id type 128 et le bufrecu du hello
 	bufE := rempMess(nameM, 128, bufR)
 	if debug {
-		fmt.Println("le mess dans bufE ", bufE)
+		fmt.Println("helloreply, le mess dans bufE ", bufE)
 	}
-	//envoie de bufE aka le message helloreply
+	// envoie de bufE aka le message helloreply
 	address := adr.String()
 	adr2, err := net.ResolveUDPAddr("udp", address)
 	_, err = conn.WriteTo(bufE, adr2)
@@ -122,7 +124,7 @@ func helloreply(adr net.Addr, bufR []byte, nameM string, conn net.PacketConn) {
 }
 
 // fonction qui envoie un hello et attend un helloreply
-// si forServeur ==1 cets quon est dan sle cas handshake serveur
+// si forServeur ==1 cets quon est dans le cas handshake serveur
 func handshake(name string, addrconn string, conn net.PacketConn, forServeur int) {
 	if debugH {
 		fmt.Printf("hello\n")
@@ -134,56 +136,66 @@ func handshake(name string, addrconn string, conn net.PacketConn, forServeur int
 	}
 	if debugH {
 		fmt.Printf("addrconn %s \n", addrconn)
-		fmt.Printf("addrconn2 %s \n ", addr2)
+		fmt.Printf("addrconn2 %s \n", addr2)
 	}
-	//preparation message bufE ENVOYE HELLO
-	buf := make([]byte, 1)
-	bufE := rempMess(name, 0, buf)
-	if debugH {
-		fmt.Println("le mess dans bufE ", bufE)
-		fmt.Println(string(bufE[7:]))
-	}
-	_, err = conn.WriteTo(bufE, addr2)
-	if err != nil {
-		fmt.Printf("write\n")
-		log.Fatal(err)
-	}
-	if debugH {
-		fmt.Printf("hello envoye !\n")
-	}
-	//attente du helloreply ATTENTION GERER RTT
+
+	// attente du helloreply ATTENTION GERER RTT
 	brk1 := 0
 	brk2 := 0
+	tps := 2
 	for brk1 != 1 || brk2 != 1 {
+		// preparation message bufE ENVOYE HELLO
+		buf := make([]byte, 1)
+		bufE := rempMess(name, 0, buf)
+		if brk1 != 1 {
+			if debugH {
+				fmt.Println("le mess dans bufE ", bufE)
+				fmt.Println("mess lisible ", string(bufE[7:]))
+			}
+			_, err = conn.WriteTo(bufE, addr2)
+			if err != nil {
+				fmt.Printf("write\n")
+				log.Fatal(err)
+			}
+			if debugH {
+				fmt.Printf("hello envoye !\n")
+			}
+		}
+
 		if debugH {
 			fmt.Printf("\n\n\n")
 		}
-		//prepare bufrecevoir pour ecrire le message recu dedans
+		// prepare bufrecevoir pour ecrire le message recu dedans
 		bufR := make([]byte, 256)
+		conn.SetReadDeadline(time.Now().Add(time.Duration(tps) * time.Second))
 		_, _, err = conn.ReadFrom(bufR)
 		if err != nil {
-			fmt.Printf("read\n")
-			log.Fatal(err)
-		}
-		//verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
-		if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
-			if debugH {
-				fmt.Printf("helloreply\n")
-				fmt.Println("le mess dasn bufR ", bufR)
-				brk1 += 1
-				//si forServeur ==1 cets quon est dan sle cas handshake serveur
-				if forServeur != 1 {
-					brk2 += 1
-				}
+			fmt.Printf("Attente\n")
+			tps = tps * 2
+			if tps >= 64 {
+				tps = 2
 			}
+			// log.Fatal(err)
+		}
+		// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
+		if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+			fmt.Printf("recu helloreply correct\n")
+			if debugH {
+				fmt.Println("le mess dans bufR ", bufR)
+			}
+			brk1 += 1
+			// si forServeur == 1 cest quon est dans le cas handshake serveur
+			if forServeur != 1 {
+				brk2 += 1
+			}
+			tps = 2
 		}
 		if bufR[4] == 254 {
 			if debugH {
-				fmt.Printf("erreur\n")
+				fmt.Printf("message erreur\n")
 				fmt.Println(string(bufR[7:]))
 			}
-		}
-		if bufR[4] == 0 {
+		} else if bufR[4] == 0 { // hello recu
 			helloreply(addr2, bufR, name, conn)
 			brk2 += 1
 		}
@@ -193,7 +205,7 @@ func handshake(name string, addrconn string, conn net.PacketConn, forServeur int
 	}
 }
 
-func appelip() {
+func appelip(name string) {
 	// recherche adresse du serveur
 	resp, err := http.Get("https://jch.irif.fr:8443/udp-address")
 	if err != nil {
@@ -215,7 +227,6 @@ func appelip() {
 	}
 
 	// enregistrement dans le serveur
-	name := "sarah"
 	// privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	// publicKey, _ := privateKey.Public().(*ecdsa.PublicKey)
 	// formatted := make([]byte, 64)
@@ -244,7 +255,12 @@ func appelip() {
 		log.Fatal("status")
 	}
 	// ecoute sur port en udp
-	port := ":4486"
+	// 49 152 à 65 535
+	s := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(s)
+	limitPort := 65535 - 1024
+	i := r.Intn(limitPort) + 1024
+	port := fmt.Sprintf(":%d", i)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -299,6 +315,7 @@ func appelip() {
 
 }
 
+// avoir la liste de tous les pairs connectes au serveur
 func chercherPairs() string {
 	resp, err := http.Get("https://jch.irif.fr:8443/peers")
 	if err != nil {
@@ -313,6 +330,8 @@ func chercherPairs() string {
 	liste := string(body)
 	return liste
 }
+
+// avoir les informations dun certain pair
 func chercherPair(username string) jsonPeer {
 	addr := fmt.Sprintf("https://jch.irif.fr:8443/peers/%s", username)
 	resp, err := http.Get(addr)
@@ -339,18 +358,19 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
-	appelip()
+	name := "test"
+	// appelip(name)
 	fmt.Println()
 	liste := chercherPairs()
-	fmt.Printf("liste %s\n", liste)
+	fmt.Printf("liste : %s\n", liste)
 	if liste != "" {
-		pair := chercherPair("sarah")
+		pair := chercherPair(name)
 		fmt.Printf("name : %s \n", pair.Name)
 		for i := 0; i < len(pair.Addresse); i++ {
 			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
 		}
 	}
-	// hello("sarah", "Ju")
+	// hello(name, "Ju")
 
 }
