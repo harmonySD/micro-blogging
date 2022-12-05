@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-var debug = false
-var debugF = false // fonction remplMesshello
+var debug = true
+var debugF = true  // fonction remplMesshello
 var debugP = false // fonction recherche de pair
 var debugH = true  // fonction hello et helloReply
 var debugA = false // fonction arbre de Merkle
@@ -375,9 +375,10 @@ func handshake(name string, addrconn string, conn net.PacketConn, forServeur int
 			fmt.Printf("PROBLEME HANDSHAKE\n")
 		}
 	}
+	//defer conn.Close()
 }
 
-func session(name string) {
+func session(name string) net.PacketConn {
 	// recherche adresse du serveur
 	resp, err := http.Get("https://jch.irif.fr:8443/udp-address")
 	if err != nil {
@@ -441,7 +442,7 @@ func session(name string) {
 		fmt.Printf("listen\n")
 		log.Fatal(err)
 	}
-	defer conn.Close()
+	//defer conn.Close()
 	//handshake avec le serveur
 	for i := 0; i < len(message)-1; i++ {
 		fmt.Printf("\n\ndebut boucle\n")
@@ -451,17 +452,17 @@ func session(name string) {
 		//si forServeur ==1 cets quon est dan sle cas handshake serveur
 		handshake(name, addrconn, conn, 1)
 	}
-	waitwaitmessages(conn, name)
+	return conn
 }
 
 // demande de rootrequest
-func rootrequestmess(adr net.Addr, conn net.PacketConn) {
+func rootrequestmess(adr string, conn net.PacketConn) {
 	if debugRQ {
 		fmt.Println("rootrequest please")
 	}
 	//envoie de bufE
-	address := adr.String()
-	adr2, err := net.ResolveUDPAddr("udp", address)
+
+	adr2, err := net.ResolveUDPAddr("udp", adr)
 	if err != nil {
 		fmt.Printf("resolve")
 		log.Fatal(err)
@@ -571,37 +572,38 @@ func waitwaitmessages(conn net.PacketConn, name string) {
 		bufR := make([]byte, 256)
 		_, addr, err := conn.ReadFrom(bufR)
 		if err != nil {
-			fmt.Printf("read\n")
-			log.Fatal(err)
-		}
-		switch bufR[4] {
-		case 0: // hello
-			helloreply(addr, bufR, name, conn)
+			//fmt.Printf("read\n")
+			//log.Fatal(err)
+		} else {
+			switch bufR[4] {
+			case 0: // hello
+				helloreply(addr, bufR, name, conn)
 
-		case 128:
-		//bon dieu pourquoi je recoit un helloreply ????
-		// helloreply
+			case 128:
+			//bon dieu pourquoi je recoit un helloreply ????
+			// helloreply
 
-		case 1: // rootrequest
-			rootmess(addr, conn)
+			case 1: // rootrequest
+				rootmess(addr, conn)
 
-		// case 129: //rootreply
+			// case 129: //rootreply
 
-		case 2: // getdatum
-		//verif datum
-		//nodatummess
-		//datummess
+			case 2: // getdatum
+			//verif datum
+			//nodatummess
+			//datummess
 
-		// case 131: // nodatum
+			// case 131: // nodatum
 
-		// case 130: // datum
+			// case 130: // datum
 
-		case 254: //erreur
-			fmt.Printf("erreur\n")
-			fmt.Println(string(bufR[7:]))
-			// break
-		default:
-			break
+			case 254: //erreur
+				fmt.Printf("erreur\n")
+				fmt.Println(string(bufR[7:]))
+				// break
+			default:
+				break
+			}
 		}
 	}
 
@@ -650,7 +652,7 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
-	// name := "test"
+	name := "harmouny"
 	// // session(name)
 	// fmt.Println()
 	// liste := chercherPairs()
@@ -671,10 +673,30 @@ func main() {
 	// buf := rempMessArbre("coucou", test)
 	// fmt.Println(buf)
 
-	ajoutMess("coucou", test)
+	ajoutMess("beurk", test)
 	affichageArbre()
-	ajoutMess("bonjour", test)
+	ajoutMess("bip", test)
 	affichageArbre()
-	ajoutMess("salut", test)
+	ajoutMess("boop", test)
 	affichageArbre()
+
+	conn := session(name)
+	//waitwaitmessages(conn, name)
+
+	liste := chercherPairs()
+	fmt.Printf("liste : %s\n", liste)
+	var adr string
+	if liste != "" {
+		pair := chercherPair("sarah")
+		fmt.Printf("name : %s \n", pair.Name)
+		i := 0
+		for i = 0; i < len(pair.Addresse); i++ {
+			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+		}
+		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	}
+	fmt.Println("*********************************************************************************************")
+	handshake(name, adr, conn, 0)
+	//rootrequestmess(adr, conn)
+
 }
