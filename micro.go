@@ -15,12 +15,12 @@ import (
 )
 
 var debug = true
-var debugF = true  // fonction remplMesshello
+var debugF = false // fonction remplMesshello
 var debugP = false // fonction recherche de pair
 var debugH = true  // fonction hello et helloReply
 var debugA = false // fonction arbre de Merkle
-var debugRQ = true //fonction root request
-var debugM = true  //fonction rempMess
+var debugRQ = true // fonction root request
+var debugM = true  // fonction rempMess
 var debugD = true  // fonction datum etc
 var idMess = 0
 var a arbreMerkle
@@ -276,7 +276,7 @@ func helloreply(adr net.Addr, bufR []byte, nameM string, conn net.PacketConn) {
 	}
 	// remplir pour un message avec NOTRE id type 128 et le bufrecu du hello
 	bufE := rempMesshello(nameM, 128, bufR)
-	if debug {
+	if debugH {
 		fmt.Println("helloreply, le mess dans bufE ", bufE)
 	}
 	// envoie de bufE aka le message helloreply
@@ -324,6 +324,7 @@ func handshake(name string, addrconn string, conn net.PacketConn, forServeur int
 			if debugH {
 				fmt.Println("le mess dans bufE ", bufE)
 				fmt.Println("mess lisible ", string(bufE[7:]))
+				fmt.Printf("addrconn2 %s \n", addr2)
 			}
 			_, err = conn.WriteTo(bufE, addr2)
 			if err != nil {
@@ -367,7 +368,7 @@ func handshake(name string, addrconn string, conn net.PacketConn, forServeur int
 				fmt.Printf("message erreur\n")
 				fmt.Println(string(bufR[7:]))
 			}
-		} else if bufR[4] == 0 { // hello recu
+		} else if (bufR[4] == 0) && (bufR[6] != 0) { // hello recu
 			helloreply(addr2, bufR, name, conn)
 			brk2 += 1
 		}
@@ -575,8 +576,10 @@ func waitwaitmessages(conn net.PacketConn, name string) {
 			//fmt.Printf("read\n")
 			//log.Fatal(err)
 		} else {
+			fmt.Printf("else waitwait\n")
 			switch bufR[4] {
 			case 0: // hello
+				fmt.Printf("recu hello du waitwait\n")
 				helloreply(addr, bufR, name, conn)
 
 			case 128:
@@ -651,8 +654,33 @@ func chercherPair(username string) jsonPeer {
 	return message
 }
 
+func envoie(name string, test string) {
+	conn := session(name)
+	//waitwaitmessages(conn, name)
+
+	liste := chercherPairs()
+	fmt.Printf("liste : %s\n", liste)
+	var adr string
+	if liste != "" {
+		pair := chercherPair(test)
+		fmt.Printf("name : %s \n", pair.Name)
+		i := 0
+		for i = 0; i < len(pair.Addresse); i++ {
+			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+		}
+		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	}
+	fmt.Println("*********************************************************************************************")
+	handshake(name, adr, conn, 0)
+	// rootrequestmess(adr, conn)
+
+	defer conn.Close()
+}
+
 func main() {
 	name := "harmouny"
+	testN := "sarah"
+	fmt.Printf("nom : %s\n", name)
 	// // session(name)
 	// fmt.Println()
 	// liste := chercherPairs()
@@ -667,36 +695,23 @@ func main() {
 	// }
 	// hello(name, "Ju")
 
-	initialisationArbre()
-	affichageArbre()
-	test := make([]byte, 256)
-	// buf := rempMessArbre("coucou", test)
-	// fmt.Println(buf)
+	// initialisationArbre()
+	// affichageArbre()
+	// test := make([]byte, 256)
+	// // buf := rempMessArbre("coucou", test)
+	// // fmt.Println(buf)
 
-	ajoutMess("beurk", test)
-	affichageArbre()
-	ajoutMess("bip", test)
-	affichageArbre()
-	ajoutMess("boop", test)
-	affichageArbre()
+	// ajoutMess("beurk", test)
+	// affichageArbre()
+	// ajoutMess("bip", test)
+	// affichageArbre()
+	// ajoutMess(name, test)
+	// affichageArbre()
 
-	conn := session(name)
-	//waitwaitmessages(conn, name)
+	envoie(name, testN)
 
-	liste := chercherPairs()
-	fmt.Printf("liste : %s\n", liste)
-	var adr string
-	if liste != "" {
-		pair := chercherPair("sarah")
-		fmt.Printf("name : %s \n", pair.Name)
-		i := 0
-		for i = 0; i < len(pair.Addresse); i++ {
-			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-		}
-		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
-	}
-	fmt.Println("*********************************************************************************************")
-	handshake(name, adr, conn, 0)
-	//rootrequestmess(adr, conn)
+	// conn := session(testN)
+	// fmt.Printf("\n\n\n\nboucle attente message \n\n")
+	// waitwaitmessages(conn, testN)
 
 }
