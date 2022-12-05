@@ -345,10 +345,9 @@ func handshake(name string, addrconn string, conn net.PacketConn, forServeur int
 		if err != nil {
 			fmt.Printf("Attente\n")
 			tps = tps * 2
-			if tps >= 64 {
+			if tps >= 32 {
 				tps = 2
 			}
-			// log.Fatal(err)
 		}
 		// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
 		if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
@@ -460,11 +459,6 @@ func rootrequestmess(adr net.Addr, conn net.PacketConn) {
 	if debugRQ {
 		fmt.Println("rootrequest please")
 	}
-	//remplir le message de deamnde corps vide leght 0 type =1
-	bufE := rempMess(1, 0)
-	if debugRQ {
-		fmt.Println("root request mess : dans bufE ", bufE)
-	}
 	//envoie de bufE
 	address := adr.String()
 	adr2, err := net.ResolveUDPAddr("udp", address)
@@ -472,15 +466,48 @@ func rootrequestmess(adr net.Addr, conn net.PacketConn) {
 		fmt.Printf("resolve")
 		log.Fatal(err)
 	}
-	_, err = conn.WriteTo(bufE, adr2)
-	if err != nil {
-		fmt.Println("write")
-		log.Fatal(err)
+	tps := 2
+	brk1 := 0
+	for brk1 != 1 {
+		bufE := rempMess(1, 0)
+		if debugRQ {
+			fmt.Println("root request mess : dans bufE ", bufE)
+		}
+		_, err = conn.WriteTo(bufE, adr2)
+		if err != nil {
+			fmt.Println("write")
+			log.Fatal(err)
+		}
+		if debugRQ {
+			fmt.Println("demande root request envoyer! ")
+		}
+		// prepare bufrecevoir pour ecrire le message recu dedans
+		bufR := make([]byte, 256)
+		conn.SetReadDeadline(time.Now().Add(time.Duration(tps) * time.Second))
+		_, _, err = conn.ReadFrom(bufR)
+		if err != nil {
+			fmt.Printf("Attente\n")
+			tps = tps * 2
+			if tps >= 32 {
+				tps = 2
+			}
+		}
+		// verif que cest bien un rootreply (donc type 129) et id du root = id du rootrequest
+		if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 129) {
+			fmt.Printf("recu rootreply correct\n")
+			if debugH {
+				fmt.Println("le mess dans bufR ", bufR)
+			}
+			brk1 += 1
+			tps = 2
+		}
+		if bufR[4] == 254 {
+			if debugH {
+				fmt.Printf("message erreur\n")
+				fmt.Println(string(bufR[7:]))
+			}
+		}
 	}
-	if debugRQ {
-		fmt.Println("demande root request envoyer! ")
-	}
-
 }
 
 // j'ai recu une rootrequest et je te reponds pas le hash de ma racine (racine hacher beurk beurk)
