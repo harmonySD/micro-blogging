@@ -258,7 +258,9 @@ func rempMess(typMess int, length int, body []byte, id []byte) []byte {
 }
 
 func nat(conn net.PacketConn, adr *net.UDPAddr) {
-
+	if debugN {
+		fmt.Println("ADRESS SERVER ", serverADDRESS)
+	}
 	fmt.Println("fonction nat")
 	//je suis A je veux me connecter a B
 	//envoie un message non soliciter au serveur nat traversal client 132
@@ -290,7 +292,7 @@ func nat(conn net.PacketConn, adr *net.UDPAddr) {
 		fmt.Println("mess buf nat taille ", len(buf))
 	}
 	bufE := rempMess(132, 6, buf, vide)
-	bufE[4] = 40
+	// bufE[4] = 40
 	if debugN {
 		fmt.Println("mess bufE nat ", bufE)
 	}
@@ -311,7 +313,7 @@ func nat(conn net.PacketConn, adr *net.UDPAddr) {
 	_, _, err = conn.ReadFrom(bufR)
 	if err == nil {
 		fmt.Println("Erreur read")
-		fmt.Println(bufR)
+		fmt.Println(string(bufR[7:]))
 	}
 	// else {
 	// 	fmt.Printf("read nat\n")
@@ -537,7 +539,8 @@ func session(name string) net.PacketConn {
 	for i := 0; i < len(message)-1; i++ {
 		fmt.Printf("\n\ndebut boucle\n")
 		addrconn := fmt.Sprintf("[%s]:%d", message[i].Host, message[i].Port)
-		serverADDRESS = addrconn
+		addrconn2 := fmt.Sprintf("%s:%d", message[i].Host, message[i].Port)
+		serverADDRESS = addrconn2
 		//envoie hello et dedans appel helloreply si recoit hello du retour sort quand a recu le helloreply
 		//du serveur plus envoyer hello reply au serveur
 		//si forServeur ==1 cets quon est dan sle cas handshake serveur
@@ -756,7 +759,7 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
-	name := "truc"
+	name := "harmouny"
 	// // session(name)
 	// fmt.Println()
 	// liste := chercherPairs()
@@ -786,22 +789,49 @@ func main() {
 
 	conn := session(name)
 	fmt.Println("*********************************************************************************************")
-	waitwaitmessages(conn, name)
+	// waitwaitmessages(conn, name)
 
-	// liste := chercherPairs()
-	// fmt.Printf("liste : %s\n", liste)
-	// var adr string
-	// if liste != "" {
-	// 	pair := chercherPair("sarah")
-	// 	fmt.Printf("name : %s \n", pair.Name)
-	// 	i := 0
-	// 	for i = 0; i < len(pair.Addresse); i++ {
-	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-	// 	}
-	// 	adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	liste := chercherPairs()
+	fmt.Printf("liste : %s\n", liste)
+	var adr string
+	if liste != "" {
+		pair := chercherPair("truc")
+		fmt.Printf("name : %s \n", pair.Name)
+		i := 0
+		for i = 0; i < len(pair.Addresse); i++ {
+			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+		}
+		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	}
+	fmt.Println("*********************************************************************************************")
+	fmt.Println("addddddrrrrr ", adr)
+
+	adr2, _ := net.ResolveUDPAddr("udp", adr)
+	nat(conn, adr2)
+	// buf := make([]byte, 6)
+	// for i := 0; i < 4; i++ {
+	// 	buf[i] = adr2.IP[i+len(adr2.IP)-4]
 	// }
-	// fmt.Println("*********************************************************************************************")
-	// fmt.Println("addddddrrrrr ", adr)
+	// bufport := make([]byte, 2)
+	// binary.BigEndian.PutUint16(bufport, uint16(adr2.Port))
+	// buf[4] = bufport[0]
+	// buf[5] = bufport[1]
+	// if debugN {
+	// 	fmt.Println("mess buf nat ", buf)
+	// 	fmt.Println("mess buf nat taille ", len(buf))
+	// }
+	// bufE := rempMess(132, 6, buf, vide)
+
+	// adr3, err := net.ResolveUDPAddr("udp", serverADDRESS)
+	// if err != nil {
+	// 	fmt.Printf("resolve\n")
+	// 	log.Fatal(err)
+	// }
+	// _, err = conn.WriteTo(bufE, adr3)
+	bufR := make([]byte, 256)
+	_, _, _ = conn.ReadFrom(bufR)
+	fmt.Println("main ", string(bufR[7:]))
+
 	// handshake(name, adr, conn, 0)
 	//rootrequestmess(adr, conn)
 
