@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
@@ -11,6 +12,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -567,7 +569,9 @@ func getDatumMess(adr net.Addr, conn net.PacketConn) {
 }
 
 func waitwaitmessages(conn net.PacketConn, name string) {
-	//attendre un message
+	fmt.Printf("Pour envoyer un message, une requete, ecrire dans le terminal, sinon vous etes en attente de message.\n")
+	scanner := bufio.NewScanner(os.Stdin)
+	// attendre un message
 	for {
 		bufR := make([]byte, 256)
 		_, addr, err := conn.ReadFrom(bufR)
@@ -605,8 +609,36 @@ func waitwaitmessages(conn net.PacketConn, name string) {
 				break
 			}
 		}
+		// envoyer un message
+		if scanner.Scan() {
+			line := scanner.Text()
+			fmt.Printf("%s\n", line)
+			choix(line, scanner)
+
+		}
 	}
 
+}
+
+func choix(mess string, scanner *bufio.Scanner) {
+	fmt.Printf("Pour poster un message, taper 1\nPour faire une requete, taper 2\n")
+	if scanner.Scan() {
+		line := scanner.Text()
+		switch line {
+		case "1": // message
+			fmt.Printf("Taper votre message\n")
+			if scanner.Scan() {
+				line = scanner.Text()
+
+			}
+			break
+		case "2": // requete
+
+			break
+		default:
+			break
+		}
+	}
 }
 
 // avoir la liste de tous les pairs connectes au serveur
@@ -652,7 +684,7 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
-	name := "harmouny"
+	name := "sarah"
 	// // session(name)
 	// fmt.Println()
 	// liste := chercherPairs()
@@ -681,22 +713,22 @@ func main() {
 	affichageArbre()
 
 	conn := session(name)
-	//waitwaitmessages(conn, name)
+	waitwaitmessages(conn, name)
 
-	liste := chercherPairs()
-	fmt.Printf("liste : %s\n", liste)
-	var adr string
-	if liste != "" {
-		pair := chercherPair("sarah")
-		fmt.Printf("name : %s \n", pair.Name)
-		i := 0
-		for i = 0; i < len(pair.Addresse); i++ {
-			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-		}
-		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
-	}
-	fmt.Println("*********************************************************************************************")
-	handshake(name, adr, conn, 0)
+	// liste := chercherPairs()
+	// fmt.Printf("liste : %s\n", liste)
+	// var adr string
+	// if liste != "" {
+	// 	pair := chercherPair("sarah")
+	// 	fmt.Printf("name : %s \n", pair.Name)
+	// 	i := 0
+	// 	for i = 0; i < len(pair.Addresse); i++ {
+	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+	// 	}
+	// 	adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	// }
+	// fmt.Println("*********************************************************************************************")
+	// handshake(name, adr, conn, 0)
 	//rootrequestmess(adr, conn)
 
 }
