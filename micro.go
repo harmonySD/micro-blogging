@@ -24,6 +24,7 @@ var debugM = true  //fonction rempMess
 var debugD = true  // fonction datum etc
 var idMess = 0
 var a arbreMerkle
+var vide []byte
 
 type jsonMessage struct {
 	Host string `json:"ip"`
@@ -154,7 +155,14 @@ func rempMessArbre(mess string, rep []byte) []byte {
 	}
 	return buf
 }
-func rempMess(typMess int, length int) []byte {
+
+// body peut etre usern	ame si hello/helloreply
+func rempMess(typMess int, length int, body []byte, id []byte) []byte {
+	var userlength int
+	if typMess == 128 || typMess == 0 {
+		userlength = len(body)
+		length = 5 + userlength
+	}
 
 	// //id+type+length+taillebody
 	// //ATTENTION MANQUE SIGNATURE
@@ -163,11 +171,18 @@ func rempMess(typMess int, length int) []byte {
 
 	var i int
 	// //generation id
-	idMess += 1
-	idMessbyte := make([]byte, 4)
-	binary.BigEndian.PutUint32(idMessbyte, uint32(idMess))
-	for i = 0; i < 4; i++ {
-		buf[i] = idMessbyte[i]
+	if typMess <= 127 && typMess >= 0 {
+		idMess += 1
+		idMessbyte := make([]byte, 4)
+		binary.BigEndian.PutUint32(idMessbyte, uint32(idMess))
+		for i = 0; i < 4; i++ {
+			buf[i] = idMessbyte[i]
+		}
+	} else if typMess <= 255 && typMess >= 128 {
+		for i = 0; i < 4; i++ {
+			buf[i] = id[i]
+		}
+
 	}
 	//type
 	j := i
@@ -193,10 +208,38 @@ func rempMess(typMess int, length int) []byte {
 			i++
 			k++
 		}
-	} else if typMess == 1 { //cas root request
+	} else if typMess == 128 || typMess == 0 { //cas helloreply
+		// Flags et flags contd
+		j = i
+		k = 0
+		for i < j+4 {
+			buf[i] = 0
+			i++
+			k++
+		}
+		// username length
+		buf[i] = byte(userlength)
+		i++
+		// username
+		j = i
+		k = 0
+		for i < j+userlength {
+			buf[i] = body[k]
+			i++
+			k++
+		}
+	} else if typMess == 1 { // cas rootrequest
+	} else if typMess == 132 || typMess == 133 { //cas nat client
+		j = i
+		k = 0
+		for i < j+length {
+			buf[i] = body[k]
+			i++
+			k++
+		}
 	}
-
 	// continuer avec la key
+	//continuer avec datum
 	if debugM {
 		fmt.Println("le mess dans rempMEss ", buf)
 	}
@@ -268,6 +311,18 @@ func rempMesshello(username string, typMess int, bufR []byte) []byte {
 	return buf
 }
 
+// func nat() {
+// 	//je suis A je veux me connecter a B
+// 	//envoie un message non soliciter au serveur nat traversal client 132
+// 	//implementer dans waitwait le cas si je recoit le nat transerval server 133
+// 	// alors je doit reagir en envoyant helloreply a A
+// 	//un peu plus tard A (moi) envoie une requete hello a B
+
+// 	//remplir message
+// 	bufE := rempMess(132)
+
+// }
+
 // fonction qui envoie un helloreply apres avoir recu un hello
 func helloreply(adr net.Addr, bufR []byte, nameM string, conn net.PacketConn) {
 	if debugH {
@@ -275,7 +330,8 @@ func helloreply(adr net.Addr, bufR []byte, nameM string, conn net.PacketConn) {
 		fmt.Println("le mess dans bufR ", bufR)
 	}
 	// remplir pour un message avec NOTRE id type 128 et le bufrecu du hello
-	bufE := rempMesshello(nameM, 128, bufR)
+	userbyte := []byte(nameM)
+	bufE := rempMess(128, 0, userbyte, bufR)
 	if debug {
 		fmt.Println("helloreply, le mess dans bufE ", bufE)
 	}
@@ -319,7 +375,8 @@ func handshake(name string, addrconn string, conn net.PacketConn, forServeur int
 	for brk1 != 1 || brk2 != 1 {
 		// preparation message bufE ENVOYE HELLO
 		buf := make([]byte, 1)
-		bufE := rempMesshello(name, 0, buf)
+		userbyte := []byte(name)
+		bufE := rempMess(0, 0, userbyte, buf)
 		if brk1 != 1 {
 			if debugH {
 				fmt.Println("le mess dans bufE ", bufE)
@@ -470,7 +527,7 @@ func rootrequestmess(adr string, conn net.PacketConn) {
 	tps := 2
 	brk1 := 0
 	for brk1 != 1 {
-		bufE := rempMess(1, 0)
+		bufE := rempMess(1, 0, vide, vide)
 		if debugRQ {
 			fmt.Println("root request mess : dans bufE ", bufE)
 		}
@@ -512,12 +569,12 @@ func rootrequestmess(adr string, conn net.PacketConn) {
 }
 
 // j'ai recu une rootrequest et je te reponds pas le hash de ma racine (racine hacher beurk beurk)
-func rootmess(adr net.Addr, conn net.PacketConn) {
+func rootmess(adr net.Addr, conn net.PacketConn, bufR []byte) {
 	if debugRQ {
 		fmt.Printf("rootRequest for you ")
 	}
 	//remplir un message avec type 129 et hash de la racine dans le corps length =32
-	bufE := rempMess(129, 32) //a peut etre pas obligatoire
+	bufE := rempMess(129, 32, vide, bufR)
 	if debugRQ {
 		fmt.Println("root mess: le mess dasn bufE ", bufE)
 	}
@@ -584,7 +641,7 @@ func waitwaitmessages(conn net.PacketConn, name string) {
 			// helloreply
 
 			case 1: // rootrequest
-				rootmess(addr, conn)
+				rootmess(addr, conn, bufR)
 
 			// case 129: //rootreply
 
@@ -667,36 +724,36 @@ func main() {
 	// }
 	// hello(name, "Ju")
 
-	initialisationArbre()
-	affichageArbre()
-	test := make([]byte, 256)
-	// buf := rempMessArbre("coucou", test)
-	// fmt.Println(buf)
+	// initialisationArbre()
+	// affichageArbre()
+	// test := make([]byte, 256)
+	// // buf := rempMessArbre("coucou", test)
+	// // fmt.Println(buf)
 
-	ajoutMess("beurk", test)
-	affichageArbre()
-	ajoutMess("bip", test)
-	affichageArbre()
-	ajoutMess("boop", test)
-	affichageArbre()
+	// ajoutMess("beurk", test)
+	// affichageArbre()
+	// ajoutMess("bip", test)
+	// affichageArbre()
+	// ajoutMess("boop", test)
+	// affichageArbre()
 
-	conn := session(name)
+	session(name)
 	//waitwaitmessages(conn, name)
 
-	liste := chercherPairs()
-	fmt.Printf("liste : %s\n", liste)
-	var adr string
-	if liste != "" {
-		pair := chercherPair("sarah")
-		fmt.Printf("name : %s \n", pair.Name)
-		i := 0
-		for i = 0; i < len(pair.Addresse); i++ {
-			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-		}
-		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
-	}
-	fmt.Println("*********************************************************************************************")
-	handshake(name, adr, conn, 0)
-	//rootrequestmess(adr, conn)
+	// liste := chercherPairs()
+	// fmt.Printf("liste : %s\n", liste)
+	// var adr string
+	// if liste != "" {
+	// 	pair := chercherPair("sarah")
+	// 	fmt.Printf("name : %s \n", pair.Name)
+	// 	i := 0
+	// 	for i = 0; i < len(pair.Addresse); i++ {
+	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+	// 	}
+	// 	adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	// }
+	// fmt.Println("*********************************************************************************************")
+	// handshake(name, adr, conn, 0)
+	// //rootrequestmess(adr, conn)
 
 }
