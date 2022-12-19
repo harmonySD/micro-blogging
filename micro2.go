@@ -789,25 +789,25 @@ func main() {
 
 	conn := session(name)
 	fmt.Println("*********************************************************************************************")
-	// waitwaitmessages(conn, name)
+	waitwaitmessages(conn, name)
 
-	liste := chercherPairs()
-	fmt.Printf("liste : %s\n", liste)
-	var adr string
-	if liste != "" {
-		pair := chercherPair("truc")
-		fmt.Printf("name : %s \n", pair.Name)
-		i := 0
-		for i = 0; i < len(pair.Addresse); i++ {
-			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-		}
-		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
-	}
+	// liste := chercherPairs()
+	// fmt.Printf("liste : %s\n", liste)
+	// var adr string
+	// if liste != "" {
+	// 	pair := chercherPair("truc")
+	// 	fmt.Printf("name : %s \n", pair.Name)
+	// 	i := 0
+	// 	for i = 0; i < len(pair.Addresse); i++ {
+	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+	// 	}
+	// 	adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	// }
 	fmt.Println("*********************************************************************************************")
-	fmt.Println("addddddrrrrr ", adr)
+	// fmt.Println("addddddrrrrr ", adr)
 
-	adr2, _ := net.ResolveUDPAddr("udp", adr)
-	nat(conn, adr2)
+	// _, _ = net.ResolveUDPAddr("udp", adr)
+	//nat(conn, adr2)
 
 	// handshake(name, adr, conn, 0)
 	//rootrequestmess(adr, conn)
