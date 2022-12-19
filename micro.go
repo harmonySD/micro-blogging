@@ -2,27 +2,33 @@ package main
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
+	"math/big"
+
+	// "math/rand"
 	"net"
 	"net/http"
 	"time"
 )
 
 var debug = true
-var debugF = true  // fonction remplMesshello
-var debugP = false // fonction recherche de pair
-var debugH = true  // fonction hello et helloReply
-var debugA = false // fonction arbre de Merkle
-var debugRQ = true //fonction root request
-var debugM = true  //fonction rempMess
-var debugD = true  // fonction datum etc
-var debugN = true  // fonction nat etc
+var debugF = false  // fonction remplMesshello
+var debugP = false  // fonction recherche de pair
+var debugH = false  // fonction hello et helloReply
+var debugA = false  // fonction arbre de Merkle
+var debugRQ = false // fonction root request
+var debugM = true   // fonction rempMess
+var debugD = true   // fonction datum etc
+var debugN = true   // fonction nat etc
+
 var idMess = 0
 var a arbreMerkle
 var vide []byte
@@ -35,12 +41,12 @@ type jsonMessage struct {
 
 type jsonEnregistrement struct {
 	Name string `json:"name"`
-	// Key  []byte `json:"key"`
+	Key  []byte `json:"key"`
 }
 type jsonPeer struct {
 	Name     string        `json:"name"`
 	Addresse []jsonMessage `json:"addresses"`
-	Key      string        `json:"key"`
+	Key      []byte        `json:"key"`
 }
 
 // arbre de Merkle
@@ -488,41 +494,50 @@ func session(name string) net.PacketConn {
 		}
 	}
 
-	// enregistrement dans le serveur
-	// privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	// publicKey, _ := privateKey.Public().(*ecdsa.PublicKey)
-	// formatted := make([]byte, 64)
-	// publicKey.X.FillBytes(formatted[:32])
-	// publicKey.Y.FillBytes(formatted[32:])
+	// creation de la cle publique et privee
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	publicKey, _ := privateKey.Public().(*ecdsa.PublicKey)
+	formatted := make([]byte, 64)
+	publicKey.X.FillBytes(formatted[:32])
+	publicKey.Y.FillBytes(formatted[32:])
 
-	// fmt.Printf("key : %d  %s \n\n", formatted, string(formatted))
-	// var key int64 = 0
+	if debug {
+		fmt.Printf("\n\n\nkey : %v\n\n", formatted)
+	}
 
-	//on s'enregistre sur le serveur
-	m := jsonEnregistrement{Name: name}
+	// on s'enregistre sur le serveur
+	m := jsonEnregistrement{Name: name, Key: formatted}
 	jsonValue, err := json.Marshal(m)
 	if err != nil {
 		fmt.Printf("marshal\n")
 		log.Fatal(err)
 	}
+	fmt.Printf("\nenregistrement\n\n")
 	fmt.Println(m)
-	fmt.Println(jsonValue)
+	if debug {
+		fmt.Printf("Json\n")
+		fmt.Println(jsonValue)
+		fmt.Printf("\n\n")
+	}
 	repPost, err := http.Post("https://jch.irif.fr:8443/register", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(repPost.StatusCode)
+	fmt.Println(repPost)
 	if repPost.StatusCode != 204 {
 		fmt.Printf("status\n")
 		log.Fatal("status")
 	}
 	// ecoute sur port en udp
 	// 49 152 à 65 535
-	s := rand.NewSource(time.Now().UnixNano())
-	r := rand.New(s)
-	limitPort := 65535 - 1024
-	i := r.Intn(limitPort) + 1024
-	port := fmt.Sprintf(":%d", i)
+	// limitPort := 65535 - 1024
+	nBig, err := rand.Int(rand.Reader, big.NewInt(65535-1024))
+	if err != nil {
+		log.Fatal(err)
+	}
+	n := nBig.Int64() + 1024
+	// i := r.Intn(limitPort) + 1024
+	port := fmt.Sprintf(":%d", n)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -758,7 +773,7 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
-	name := "har"
+	name := "sa"
 	// // session(name)
 	// fmt.Println()
 	// liste := chercherPairs()
@@ -792,21 +807,21 @@ func main() {
 
 	liste := chercherPairs()
 	fmt.Printf("liste : %s\n", liste)
-	var adr string
-	if liste != "" {
-		pair := chercherPair("test")
-		fmt.Printf("name : %s \n", pair.Name)
-		i := 0
-		for i = 0; i < len(pair.Addresse); i++ {
-			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-		}
-		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
-	}
-	fmt.Println("*********************************************************************************************")
-	fmt.Println("addddddrrrrr ", adr)
+	// var adr string
+	// if liste != "" {
+	// 	pair := chercherPair("jch")
+	// 	fmt.Printf("name : %s \n", pair.Name)
+	// 	i := 0
+	// 	for i = 0; i < len(pair.Addresse); i++ {
+	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+	// 	}
+	// 	// adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	// }
+	// fmt.Println("*********************************************************************************************")
+	// fmt.Println("addddddrrrrr ", adr)
 
-	adr2, _ := net.ResolveUDPAddr("udp", adr)
-	nat(conn, adr2)
+	// adr2, _ := net.ResolveUDPAddr("udp", adr)
+	// nat(conn, adr2)
 
 	// handshake(name, adr, conn, 0)
 	//rootrequestmess(adr, conn)
