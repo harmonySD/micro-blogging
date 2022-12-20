@@ -12,11 +12,12 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
-
-	// "math/rand"
+	"encoding/base64"
 	"net"
 	"net/http"
 	"time"
+	"os"
+	// "math/rand"
 )
 
 var debug = true
@@ -501,12 +502,20 @@ func session(name string) net.PacketConn {
 	publicKey.X.FillBytes(formatted[:32])
 	publicKey.Y.FillBytes(formatted[32:])
 
+	// key := make([]byte, base64.StdEncoding.EncodedLen(len(formatted)))
+	// base64.StdEncoding.Encode(key, formatted)
+	str := base64.StdEncoding.EncodeToString(formatted)
+	key := []byte(str)
+	// key := make([]byte, 64)
+
 	if debug {
-		fmt.Printf("\n\n\nkey : %v\n\n", formatted)
+		fmt.Printf("\n\n\nformatted : %v %T\n\n", formatted, formatted)
+		fmt.Printf("str : %v %T\n\n", str, str)
+		fmt.Printf("key : %v %T %v\n\n", key, key, len(key))
 	}
 
 	// on s'enregistre sur le serveur
-	m := jsonEnregistrement{Name: name, Key: formatted}
+	m := jsonEnregistrement{Name: name, Key: key}
 	jsonValue, err := json.Marshal(m)
 	if err != nil {
 		fmt.Printf("marshal\n")
@@ -523,9 +532,10 @@ func session(name string) net.PacketConn {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(repPost)
+	repPost.Write(os.Stdout)
+	// fmt.Println(repPost)
 	if repPost.StatusCode != 204 {
-		fmt.Printf("status\n")
+		fmt.Printf("\nstatus\n")
 		log.Fatal("status")
 	}
 	// ecoute sur port en udp
