@@ -564,7 +564,7 @@ func session(name string) net.PacketConn {
 	}
 	//defer conn.Close()
 	//handshake avec le serveur
-	for i := 0; i < len(message)-1; i++ {
+	for i := 0; i < len(message); i++ {
 		fmt.Printf("\n\ndebut boucle\n")
 		addrconn := fmt.Sprintf("[%s]:%d", message[i].Host, message[i].Port)
 		serverADDRESS = addrconn
@@ -926,13 +926,13 @@ func main() {
 	fmt.Printf("liste : %s\n", liste)
 	var adr string
 	if liste != "" {
-		pair := chercherPair("harmouny")
+		pair := chercherPair("jch")
 		fmt.Printf("name : %s \n", pair.Name)
 		i := 0
 		for i = 0; i < len(pair.Addresse); i++ {
 			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 		}
-		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+		adr = fmt.Sprintf("%s:%d", pair.Addresse[0].Host, pair.Addresse[0].Port)
 	}
 	fmt.Println("*********************************************************************************************")
 	fmt.Println("addddddrrrrr ", adr)
@@ -943,6 +943,41 @@ func main() {
 
 	handshake(name, adr, conn, 0)
 	rootrequestmess(adr, conn)
+	buff := make([]byte, 32)
+	buff[0] = 149
+	buff[1] = 128
+	buff[2] = 179
+	buff[3] = 235
+	buff[4] = 191
+	buff[5] = 218
+	buff[6] = 114
+	buff[7] = 173
+	buff[8] = 233
+	buff[9] = 209
+	buff[10] = 49
+	buff[11] = 201
+	buff[12] = 195
+	buff[13] = 104
+	buff[14] = 73
+	buff[15] = 247
+	buff[16] = 145
+	buff[17] = 6
+	buff[18] = 41
+	buff[19] = 163
+	buff[20] = 40
+	buff[21] = 48
+	buff[22] = 35
+	buff[23] = 73
+	buff[24] = 232
+	buff[25] = 176
+	buff[26] = 212
+	buff[27] = 169
+	buff[28] = 96
+	buff[29] = 25
+	buff[30] = 51
+	buff[31] = 3
+
+	getDatumMess(adr, conn, buff)
 
 	defer conn.Close()
 
