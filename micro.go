@@ -502,6 +502,7 @@ func session(name string) net.PacketConn {
 	publicKey.X.FillBytes(formatted[:32])
 	publicKey.Y.FillBytes(formatted[32:])
 
+	// encoder en base64
 	// key := make([]byte, base64.StdEncoding.EncodedLen(len(formatted)))
 	// base64.StdEncoding.Encode(key, formatted)
 	str := base64.StdEncoding.EncodeToString(formatted)
