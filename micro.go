@@ -967,7 +967,7 @@ func main() {
 		for i = 0; i < len(pair.Addresse); i++ {
 			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 		}
-		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-2].Host, pair.Addresse[i-2].Port)
+		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
 	}
 	fmt.Println("*********************************************************************************************")
 	fmt.Println("addddddrrrrr ", adr)
