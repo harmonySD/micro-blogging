@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net"
 	"net/http"
 	"time"
@@ -93,7 +92,12 @@ func affichageNoeud(n *noeud) {
 }
 
 func goodhash(hash []byte) bool {
+	// h := sha256.Sum256(a.racine.value)
+	// if bytes.Compare(h, hash) == 0 {
+	// 	return true
+	// } else {
 	return goodhashnoued(a.racine, hash)
+	// }
 
 }
 
@@ -121,7 +125,7 @@ func rempNoeudArbre(gauche *noeud, droit *noeud) []byte {
 	buf := make([]byte, lenNoeud)
 
 	hg := sha256.Sum256(gauche.value)
-	hd := sha256.Sum256(gauche.value)
+	hd := sha256.Sum256(droit.value)
 	buf[0] = 1
 	k := 32
 	for i := 0; i < 32; i++ {
@@ -318,6 +322,7 @@ func nat(conn net.PacketConn, adr *net.UDPAddr) {
 	if debugN {
 		fmt.Println("mess bufE nat ", bufE)
 	}
+
 	server, err := net.ResolveUDPAddr("udp", serverADDRESS)
 	if err != nil {
 		fmt.Println("Resolveudp NAT")
@@ -541,11 +546,11 @@ func session(name string) net.PacketConn {
 	}
 	// ecoute sur port en udp
 	// 49 152 à 65 535
-	s := rand.NewSource(time.Now().UnixNano())
-	r := rand.New(s)
-	limitPort := 65535 - 1024
-	i := r.Intn(limitPort) + 1024
-	port := fmt.Sprintf(":%d", i)
+	// s := rand.NewSource(time.Now().UnixNano())
+	// r := rand.New(s)
+	// limitPort := 65535 - 1024
+	// i := r.Intn(limitPort) + 1024
+	port := fmt.Sprintf(":%d", 7284)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -711,6 +716,7 @@ func getDatumMess(adr string, conn net.PacketConn, hash []byte) {
 					fmt.Println("meme hash")
 				}
 				fmt.Printf("recu datum correct\n")
+				fmt.Println(bufR[39:])
 				//apel fction pour afficher les mess du hash
 			}
 
@@ -755,31 +761,31 @@ func noDatumMess(adr net.Addr, conn net.PacketConn, bufR []byte) {
 	}
 }
 
-// func datumMess(adr net.Addr, conn net.PacketConn, bufR []byte){
-// 	if debugRQ {
-// 		fmt.Println("datumMess please")
-// 	}
-// 	//remplir un message avec type  130 avec le hash demander
-// 	bufE := rempMess(130, 32, bufR[7:39], bufR)
-// 	if debugRQ {
-// 		fmt.Println("datum mess: le mess dasn bufE ", bufE)
-// 	}
-// 	//envoie de bufE
-// 	address := adr.String()
-// 	adr2, err := net.ResolveUDPAddr("udp", address)
-// 	if err != nil {
-// 		fmt.Printf("resolve\n")
-// 		log.Fatal(err)
-// 	}
-// 	_, err = conn.WriteTo(bufE, adr2)
-// 	if err != nil {
-// 		fmt.Println("write")
-// 		log.Fatal(err)
-// 	}
-// 	if debugRQ {
-// 		fmt.Println("nodatum racine envoyer")
-// 	}
-// }
+func datumMess(adr net.Addr, conn net.PacketConn, bufR []byte) {
+	if debugRQ {
+		fmt.Println("datumMess please")
+	}
+	//remplir un message avec type  130 avec le hash demander
+	bufE := rempMess(130, 32, bufR[7:39], bufR)
+	if debugRQ {
+		fmt.Println("datum mess: le mess dasn bufE ", bufE)
+	}
+	//envoie de bufE
+	address := adr.String()
+	adr2, err := net.ResolveUDPAddr("udp", address)
+	if err != nil {
+		fmt.Printf("resolve\n")
+		log.Fatal(err)
+	}
+	_, err = conn.WriteTo(bufE, adr2)
+	if err != nil {
+		fmt.Println("write")
+		log.Fatal(err)
+	}
+	if debugRQ {
+		fmt.Println("nodatum racine envoyer")
+	}
+}
 
 func waitwaitmessages(conn net.PacketConn, name string) {
 	//attendre un message
@@ -926,16 +932,17 @@ func main() {
 		for i = 0; i < len(pair.Addresse); i++ {
 			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 		}
-		adr = fmt.Sprintf("%s:%d", pair.Addresse[0].Host, pair.Addresse[0].Port)
+		adr = fmt.Sprintf("%s:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
 	}
 	fmt.Println("*********************************************************************************************")
 	fmt.Println("addddddrrrrr ", adr)
 
-	adr2, _ := net.ResolveUDPAddr("udp", serverADDRESS)
-	nat(conn, adr2)
+	// adr2, _ := net.ResolveUDPAddr("udp", serverADDRESS)
+	// adr2, _ := net.ResolveUDPAddr("udp", adr)
+	// nat(conn, adr2)
 
-	// handshake(name, adr, conn, 0)
-	//rootrequestmess(adr, conn)
+	handshake(name, adr, conn, 0)
+	rootrequestmess(adr, conn)
 
 	defer conn.Close()
 
