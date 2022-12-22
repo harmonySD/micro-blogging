@@ -10,11 +10,13 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 	// "math/rand"
 )
 
-var debug = false   // fonction session
+var debug = false // fonction session
+var debugIP = true
 var debugP = false  // fonction recherche de pair
 var debugH = false  // fonction hello et helloReply
 var debugA = false  // fonction arbre de Merkle
@@ -27,7 +29,8 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serverADDRESS string
-var name = "chouette"
+var name = "pouette"
+var myIP = 4
 
 type jsonMessage struct {
 	Host string `json:"ip"`
@@ -313,7 +316,6 @@ func rempMess(typMess int, length int, body []byte, id []byte) []byte {
 		i += length
 	}
 	// continuer avec la key
-	// continuer avec datum
 	if debugM {
 		fmt.Println("le mess dans rempMEss ", buf)
 	}
@@ -451,7 +453,8 @@ func helloreply(adr net.Addr, bufR []byte, conn net.PacketConn) {
 }
 
 // focntion qui envoie hello et attend helloreply
-func hello(addrconn string, conn net.PacketConn) {
+// forserver =1 cas server
+func hello(addrconn string, conn net.PacketConn, forserver int) {
 	if debugH {
 		fmt.Printf("hello\n")
 	}
@@ -496,7 +499,7 @@ func hello(addrconn string, conn net.PacketConn) {
 		if debugH {
 			fmt.Println(bufR[:20])
 		}
-		if err != nil && tps > 20 {
+		if err != nil && tps > 20 && forserver != 1 {
 			fmt.Println("nat handshake")
 			nat(conn, addr2)
 			for {
@@ -509,7 +512,7 @@ func hello(addrconn string, conn net.PacketConn) {
 			}
 			// waitwaitmessages(conn, name)
 			break
-		} else if err != nil  {
+		} else if err != nil {
 			fmt.Printf("\n\nAttente\n")
 			tps = tps * 2
 			if tps > 64 {
@@ -537,85 +540,12 @@ func hello(addrconn string, conn net.PacketConn) {
 		if brk1 > 2 {
 			fmt.Printf("PROBLEME HELLO\n")
 			break
-		} 
-	}
-	//defer conn.Close()
-}
-
-// fonction qui envoie un hello et attend un helloreply
-// si forServeur ==1 cets quon est dans le cas handshake serveur
-func handshake(addrconn string, conn net.PacketConn) {
-	if debugH {
-		fmt.Printf("handshake\n")
-	}
-	if debugN {
-		fmt.Printf("addrconn %s \n", addrconn)
-		// fmt.Printf("addrconn2 %s \n", addr2)
-	}
-	addr2, err := net.ResolveUDPAddr("udp", addrconn)
-	if err != nil {
-		fmt.Printf("resolve udp\n")
-		log.Fatal(err)
-	}
-
-	brk1 := 0
-	brk2 := 0
-	tps := 2
-	for brk1 != 1 || brk2 != 1 {
-		// preparation message bufE ENVOYE HELLO
-		buf := make([]byte, 1)
-		userbyte := []byte(name)
-		bufE := rempMess(0, 0, userbyte, buf)
-		if brk1 != 1 {
-			if debugH {
-				fmt.Println("le mess dans bufE ", bufE)
-				fmt.Println("mess lisible ", string(bufE[7:]))
-			}
-			_, err = conn.WriteTo(bufE, addr2)
-			if err != nil {
-				fmt.Printf("write\n")
-				log.Fatal(err)
-			}
-			fmt.Printf("hello envoye !\n")
 		}
-
-		if debugH {
-			fmt.Printf("\n\n\n")
-		}
-		// prepare bufrecevoir pour ecrire le message recu dedans
-		bufR := make([]byte, 256)
-		conn.SetReadDeadline(time.Now().Add(time.Duration(tps) * time.Second))
-		_, _, err = conn.ReadFrom(bufR)
-		if err != nil {
-			fmt.Printf("Attente\n")
-			tps = tps * 2
-			if tps >= 32 {
-				tps = 2
-			}
-		} 
-		// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
-		if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
-			fmt.Printf("recu helloreply correct\n")
-			if debugH {
-				fmt.Println("le mess dans bufR ", bufR)
-			}
-			brk1 += 1
-			tps = 2
-		}
-		if bufR[4] == 254 {
-			if debugH {
-				fmt.Printf("message erreur\n")
-				fmt.Println(string(bufR[7:]))
-			}
-		} else if bufR[4] == 0 { // hello recu
-			fmt.Println("hello serveur")
-			helloreply(addr2, bufR, conn)
-			brk2 += 1
-		}
-		if brk1 > 2 || brk2 > 2 {
-			fmt.Printf("PROBLEME HANDSHAKE\n")
-			break
-		} 
+	}
+	//
+	if forserver == 1 {
+		fmt.Println("bouuuuh")
+		go waitwaitmessages(conn, 1)
 	}
 	//defer conn.Close()
 }
@@ -681,7 +611,7 @@ func session() net.PacketConn {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7286)
+	port := fmt.Sprintf(":%d", 7282)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -695,16 +625,19 @@ func session() net.PacketConn {
 	}
 	//defer conn.Close()
 	// handshake avec le serveur
+
 	for i := 0; i < len(message); i++ {
 		fmt.Printf("\n\n")
-		if debug {
+		if debugIP {
 			fmt.Printf("\n\ndebut boucle\n")
 		}
 		addrconn := fmt.Sprintf("[%s]:%d", message[i].Host, message[i].Port)
 		serverADDRESS = addrconn
-		// envoie hello et dedans appel helloreply si recoit hello du retour sort quand a recu le helloreply
-		// du serveur plus envoyer hello reply au serveur
-		handshake(addrconn, conn)
+		hello(addrconn, conn, 1)
+		//si on a que ipv4 alors on prends pas les adresse a la position i impair (sera tjs ipv6)
+		if myIP == 4 {
+			i++
+		}
 	}
 	return conn
 }
@@ -922,7 +855,7 @@ func noDatumMess(adr net.Addr, conn net.PacketConn, bufR []byte) {
 // 	}
 // }
 
-func waitwaitmessages(conn net.PacketConn) {
+func waitwaitmessages(conn net.PacketConn, forserver int) {
 	//attendre un message
 	for {
 		//fmt.Println("LA")
@@ -936,14 +869,17 @@ func waitwaitmessages(conn net.PacketConn) {
 			switch bufR[4] {
 			case 0: // hello
 				helloreply(addr, bufR, conn)
+				break
 
 			case 128:
 				// helloreply
 				fmt.Println("hello reply non demander")
-				hello(addr.String(), conn)
+				hello(addr.String(), conn, 0)
+				break
 
 			case 1: // rootrequest
 				rootmess(addr, conn, bufR)
+				break
 			case 133: // nat s
 				fmt.Println("IM HERE ")
 				adr := bufR[7:13] // car ipv4
@@ -954,6 +890,7 @@ func waitwaitmessages(conn net.PacketConn) {
 					log.Fatal(err)
 				}
 				helloreply(adr2, bufR, conn)
+				break
 
 			// case 129: // rootreply
 
@@ -969,6 +906,7 @@ func waitwaitmessages(conn net.PacketConn) {
 				} else {
 					noDatumMess(addr, conn, bufR)
 				}
+				break
 			// case 131: // nodatum
 
 			// case 130: // datum
@@ -982,6 +920,12 @@ func waitwaitmessages(conn net.PacketConn) {
 				break
 			}
 		}
+		if forserver == 1 {
+			break
+		}
+	}
+	if debugIP {
+		fmt.Println("SORTIE WAITWAIT")
 	}
 }
 
@@ -1028,6 +972,14 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
+	//arg 1 savoir si ipv6
+	arg1 := os.Args[1]
+	if arg1 == "6" {
+		if debugIP {
+			fmt.Println("Vous avez ipv6")
+		}
+		myIP = 6
+	}
 
 	// initialisationArbre()
 	// affichageArbre()
@@ -1047,7 +999,7 @@ func main() {
 	fmt.Printf("liste : %s\n", liste)
 	var adr string
 	if liste != "" {
-		pair := chercherPair("jch")
+		pair := chercherPair(name)
 		fmt.Printf("name : %s \n", pair.Name)
 		i := 0
 		for i = 0; i < len(pair.Addresse); i++ {
@@ -1062,7 +1014,7 @@ func main() {
 	// adr2, _ := net.ResolveUDPAddr("udp", adr)
 	// nat(conn, adr2)
 
-	hello(adr, conn)
+	// hello(adr, conn)
 	// fmt.Println()
 	// hash := rootrequestmess(adr, conn)
 	// fmt.Println()
