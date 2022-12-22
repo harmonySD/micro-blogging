@@ -11,9 +11,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 	// "math/rand"
 )
+
+var wg sync.WaitGroup
 
 var debug = false // fonction session
 var debugIP = true
@@ -29,7 +32,7 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serverADDRESS string
-var name = "pouette"
+var name = "tomate"
 var myIP = 4
 
 type jsonMessage struct {
@@ -452,7 +455,7 @@ func helloreply(adr net.Addr, bufR []byte, conn net.PacketConn) {
 	}
 }
 
-// focntion qui envoie hello et attend helloreply
+// focntion qui envoie hello
 // forserver =1 cas server
 func hello(addrconn string, conn net.PacketConn, forserver int) {
 	if debugH {
@@ -542,11 +545,6 @@ func hello(addrconn string, conn net.PacketConn, forserver int) {
 			break
 		}
 	}
-	//
-	if forserver == 1 {
-		fmt.Println("bouuuuh")
-		go waitwaitmessages(conn, 1)
-	}
 	//defer conn.Close()
 }
 
@@ -611,7 +609,7 @@ func session() net.PacketConn {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7282)
+	port := fmt.Sprintf(":%d", 7290)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -855,7 +853,8 @@ func noDatumMess(adr net.Addr, conn net.PacketConn, bufR []byte) {
 // 	}
 // }
 
-func waitwaitmessages(conn net.PacketConn, forserver int) {
+func waitwaitmessages(conn net.PacketConn) {
+	defer wg.Done()
 	//attendre un message
 	for {
 		//fmt.Println("LA")
@@ -919,9 +918,6 @@ func waitwaitmessages(conn net.PacketConn, forserver int) {
 				fmt.Printf("mess de type inconnu")
 				break
 			}
-		}
-		if forserver == 1 {
-			break
 		}
 	}
 	if debugIP {
@@ -992,6 +988,7 @@ func main() {
 	// affichageArbre()
 
 	conn := session()
+	go waitwaitmessages(conn)
 	fmt.Println("*********************************************************************************************")
 	// waitwaitmessages(conn)
 
