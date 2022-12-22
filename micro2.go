@@ -27,7 +27,7 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serverADDRESS string
-var name = "chouette"
+var name = "poireau"
 
 type jsonMessage struct {
 	Host string `json:"ip"`
@@ -509,7 +509,7 @@ func hello(addrconn string, conn net.PacketConn) {
 			}
 			// waitwaitmessages(conn, name)
 			break
-		} else if err != nil  {
+		} else if err != nil {
 			fmt.Printf("\n\nAttente\n")
 			tps = tps * 2
 			if tps > 64 {
@@ -537,7 +537,7 @@ func hello(addrconn string, conn net.PacketConn) {
 		if brk1 > 2 {
 			fmt.Printf("PROBLEME HELLO\n")
 			break
-		} 
+		}
 	}
 	//defer conn.Close()
 }
@@ -592,7 +592,7 @@ func handshake(addrconn string, conn net.PacketConn) {
 			if tps >= 32 {
 				tps = 2
 			}
-		} 
+		}
 		// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
 		if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
 			fmt.Printf("recu helloreply correct\n")
@@ -615,7 +615,7 @@ func handshake(addrconn string, conn net.PacketConn) {
 		if brk1 > 2 || brk2 > 2 {
 			fmt.Printf("PROBLEME HANDSHAKE\n")
 			break
-		} 
+		}
 	}
 	//defer conn.Close()
 }
@@ -681,7 +681,7 @@ func session() net.PacketConn {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7286)
+	port := fmt.Sprintf(":%d", 7369)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -1041,28 +1041,28 @@ func main() {
 
 	conn := session()
 	fmt.Println("*********************************************************************************************")
-	// waitwaitmessages(conn)
+	waitwaitmessages(conn)
 
-	liste := chercherPairs()
-	fmt.Printf("liste : %s\n", liste)
-	var adr string
-	if liste != "" {
-		pair := chercherPair("jch")
-		fmt.Printf("name : %s \n", pair.Name)
-		i := 0
-		for i = 0; i < len(pair.Addresse); i++ {
-			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-		}
-		adr = fmt.Sprintf("[%s]:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
-	}
-	fmt.Println("*********************************************************************************************")
-	fmt.Println("addddddrrrrr ", adr)
+	// liste := chercherPairs()
+	// fmt.Printf("liste : %s\n", liste)
+	// var adr string
+	// if liste != "" {
+	// 	pair := chercherPair("jch")
+	// 	fmt.Printf("name : %s \n", pair.Name)
+	// 	i := 0
+	// 	for i = 0; i < len(pair.Addresse); i++ {
+	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+	// 	}
+	// 	adr = fmt.Sprintf("[%s]:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	// }
+	// fmt.Println("*********************************************************************************************")
+	// fmt.Println("addddddrrrrr ", adr)
 
 	// adr2, _ := net.ResolveUDPAddr("udp", serverADDRESS)
 	// adr2, _ := net.ResolveUDPAddr("udp", adr)
 	// nat(conn, adr2)
 
-	hello(adr, conn)
+	// hello(adr, conn)
 	// fmt.Println()
 	// hash := rootrequestmess(adr, conn)
 	// fmt.Println()
