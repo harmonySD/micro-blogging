@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 )
 
 func helloreplyServeur(bufR []byte, conn net.PacketConn, name string) {
@@ -171,6 +172,84 @@ func hello(name string, pair string) {
 			i = 0
 		}
 	}
+}
+
+// fonction qui envoie un hello et attend un helloreply
+// si forServeur ==1 cets quon est dans le cas handshake serveur
+func handshake(addrconn string, conn net.PacketConn) {
+	if debugH {
+		fmt.Printf("handshake\n")
+	}
+	if debugN {
+		fmt.Printf("addrconn %s \n", addrconn)
+		// fmt.Printf("addrconn2 %s \n", addr2)
+	}
+	addr2, err := net.ResolveUDPAddr("udp", addrconn)
+	if err != nil {
+		fmt.Printf("resolve udp\n")
+		log.Fatal(err)
+	}
+
+	brk1 := 0
+	brk2 := 0
+	tps := 2
+	for brk1 != 1 || brk2 != 1 {
+		// preparation message bufE ENVOYE HELLO
+		buf := make([]byte, 1)
+		userbyte := []byte(name)
+		bufE := rempMess(0, 0, userbyte, buf)
+		if brk1 != 1 {
+			if debugH {
+				fmt.Println("le mess dans bufE ", bufE)
+				fmt.Println("mess lisible ", string(bufE[7:]))
+			}
+			_, err = conn.WriteTo(bufE, addr2)
+			if err != nil {
+				fmt.Printf("write\n")
+				log.Fatal(err)
+			}
+			fmt.Printf("hello envoye !\n")
+		}
+
+		if debugH {
+			fmt.Printf("\n\n\n")
+		}
+		// prepare bufrecevoir pour ecrire le message recu dedans
+		bufR := make([]byte, 256)
+		conn.SetReadDeadline(time.Now().Add(time.Duration(tps) * time.Second))
+		_, _, err = conn.ReadFrom(bufR)
+		if err != nil {
+			fmt.Printf("Attente\n")
+			tps = tps * 2
+			if tps >= 32 {
+				tps = 2
+			}
+		}
+		// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
+		if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+			fmt.Printf("recu helloreply correct\n")
+			if debugH {
+				fmt.Println("le mess dans bufR ", bufR)
+			}
+			brk1 += 1
+			tps = 2
+		}
+		if bufR[4] == 254 {
+			if debugH {
+				fmt.Printf("message erreur\n")
+				fmt.Println(string(bufR[7:]))
+			}
+		} else if bufR[4] == 0 { // hello recu
+			fmt.Println("hello serveur")
+			helloreply(addr2, bufR, conn)
+			brk2 += 1
+		}
+		if brk1 > 2 || brk2 > 2 {
+			fmt.Printf("PROBLEME HANDSHAKE\n")
+			break
+		}
+	}
+	//defer conn.Close()
 }
 
 func main() {}
