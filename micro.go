@@ -95,12 +95,12 @@ func affichageNoeud(n *noeud) {
 }
 
 func goodhash(hash []byte) bool {
-	// h := sha256.Sum256(a.racine.value)
-	// if bytes.Compare(h, hash) == 0 {
-	// 	return true
-	// } else {
-	return goodhashnoued(a.racine, hash)
-	// }
+	h := sha256.Sum256(a.racine.value)
+	if bytes.Equal(h[:], hash) {
+		return true
+	} else {
+		return goodhashnoued(a.racine, hash)
+	}
 
 }
 
@@ -187,38 +187,89 @@ func rempMessArbre(mess string, rep []byte) []byte {
 	return buf
 }
 
-// func rempDatum(hash []byte) []byte, int {
-// 	buf := make([]byte, buflen)
-// 	n = 0
-// 	var nD noeud
-// 	h := sha256.Sum256(a.racine.value)
-// 	if (bytes.Compare(hash, h) == 0){
-// 		nD = a.racine
-// 	} else {
-// 		no := a.racine
-// 	hg := no.value[1:33]
-// 	hd := no.value[33:]
-// 	for (bytes.Compare(hash, hd) != 0 && bytes.Compare(hash, hg) != 0)){
-// 		no = no.gauche
-// 		hg := no.value[1:33]
-// 		hd := no.value[33:]
-// 	}
-// 	if bytes.Compare(hash, hd) == 0 {
-// 		nD = no.droit
-// 	} else if bytes.Compare(hash, hg) == 0 {
-// 		nD = no.gauche
-// 	}
-// }
+func rempDatum(hash []byte) ([]byte, int) {
+	buf := make([]byte, 1024)
+	n := 0
+	var nD *noeud
+	h := sha256.Sum256(a.racine.value)
+	if bytes.Equal(h[:], hash){
+		nD = a.racine
+	} else {
+		no := a.racine
+		hg := no.value[1:33]
+		hd := no.value[33:]
+		for (! bytes.Equal(hash, hd)) && (! bytes.Equal(hash, hg)){
+			no = no.gauche
+			hg = no.value[1:33]
+			hd = no.value[33:]
+		}
+		if bytes.Equal(hash, hd) {
+			nD = no.droit
+		} else if bytes.Equal(hash, hg)  {
+			nD = no.gauche
+		}
+	}
+	taille := 1 + 4 + 32 + 2
+	for nD.value[0] != 0 {
+		length := int(binary.BigEndian.Uint16(nD.droit.value[taille-2:taille]))
+		copy(buf[n:(n + taille + length)], nD.droit.value)
+		n += taille + length
+		nD = nD.gauche
+	}
+	
+	length := int(binary.BigEndian.Uint16(nD.value[taille-2:taille]))
 
-// for nD.value[0] != 0 {
+	copy(buf[n:(n + taille + length)], nD.value)
+	n += taille + length
+	if debugD {
+		fmt.Println("buf ", buf[:n])
+	}
+	n += 32
+	bufF := make([]byte, n)
+	copy(bufF[:32], hash)
+	copy(bufF[32:], buf)
+	return bufF, n
+}
 
-// }
-// 	taille := 1 + 4 + 32 + 2
-// 	length := binary.BigEndian.Uint16(nd.value[taille-2:taille])
-// 	copy(buf[n:(n+taille)], nD.value)
+func afficheDatum(bufR []byte) {
+	lenghtbyte := bufR[5:7]
+	buf := bytes.NewReader(lenghtbyte)
+	var n uint16
+	binary.Read(buf, binary.BigEndian, &n)
+	if debugD {
+		fmt.Println("taille ", int(n))
+		fmt.Println("message datum", bufR)
+	}
+	deb := 4 + 1 + 2 + 32
+	for int(n) > deb {
+		if debugD {
+			fmt.Println("\n\ntaille ", deb)
+			fmt.Println("message datum", bufR[deb:])
+		}
+		deb += 1
+		date := bufR[deb:(deb+4)]
+		buf := bytes.NewReader(lenghtbyte)
+		var n uint16
+		binary.Read(buf, binary.BigEndian, &n)
+		deb += 4
+		hash := bufR[deb:(deb+32)]
+		deb += 32
+		length := int(binary.BigEndian.Uint16(bufR[deb:(deb+2)]))
+		deb += 2
+		mess := string(bufR[deb:(deb+length)])
+		deb += length
+		if hash[0] == 0 {
+			fmt.Printf("message datant du %v, %v\n\n", date, mess)
+		} else {
+			fmt.Printf("message datant du %v, repondant a %v, %v\n\n", date, hash, mess)
+		}
+		if debugD {
+			fmt.Println("ou ", n, deb)
+		}
 
-// 	return buf, n
-// }
+	}
+
+}
 
 // body peut etre username si hello/helloreply
 func rempMess(typMess int, length int, body []byte, id []byte) []byte {
@@ -303,7 +354,14 @@ func rempMess(typMess int, length int, body []byte, id []byte) []byte {
 		i += length
 	} else if typMess == 130 { // datum
 		fmt.Println("remp mess Datum")
-
+		fmt.Println("remp mess getDatum")
+		if debugM {
+			fmt.Println(body)
+		}
+		for k := 0; k < length; k++ {
+			buf[k+i] = body[k]
+		}
+		i += length
 	} else if typMess == 131 { // Nodatum
 		fmt.Println("remp mess NoDatum")
 		if debugM {
@@ -406,6 +464,7 @@ func nat(conn net.PacketConn, adr *net.UDPAddr) {
 		fmt.Println("nat envoyer")
 	}
 }
+
 func natReceive(conn net.PacketConn, bufR []byte, name string) {
 	if debug {
 		fmt.Printf("j'ai recu nat du serveur")
@@ -822,7 +881,7 @@ func getDatumMess(adr string, conn net.PacketConn, hash []byte) {
 			fmt.Println("demande getdatum envoyer! ")
 		}
 		// prepare bufrecevoir pour ecrire le message recu dedans
-		bufR := make([]byte, 256)
+		bufR := make([]byte, 1024)
 		conn.SetReadDeadline(time.Now().Add(time.Duration(tps) * time.Second))
 		_, _, err = conn.ReadFrom(bufR)
 		if err != nil {
@@ -837,7 +896,7 @@ func getDatumMess(adr string, conn net.PacketConn, hash []byte) {
 			// verif la valeur du hash
 			if bytes.Compare(hash, bufR[7:39]) == 0 {
 				if debugD {
-					fmt.Println("meme hash")
+					fmt.Println("meme hash no")
 				}
 				fmt.Printf("recu NOdatum correct\n")
 				//appel fonction pour afficher les mess du hash
@@ -849,7 +908,7 @@ func getDatumMess(adr string, conn net.PacketConn, hash []byte) {
 			// verif la valeur du hash
 			if bytes.Compare(hash, bufR[7:39]) == 0 {
 				if debugD {
-					fmt.Println("meme hash")
+					fmt.Println("meme hash datum")
 				}
 				fmt.Printf("recu datum correct\n")
 				fmt.Println(string(bufR[(39 + 1 + 4 + 32):]))
@@ -1030,23 +1089,43 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
-	arg1 := os.Args[1]
-	if arg1 == "6" {
-		myIP = 6
-	}
-	// initialisationArbre()
-	// affichageArbre()
+	// length := 257
+	// lenghtbyte := make([]byte, 2)
+	// binary.BigEndian.PutUint16(lenghtbyte, uint16(length))
+	// nowBuffer := bytes.NewReader(lenghtbyte)
+	// var len uint16
+	// binary.Read(nowBuffer,binary.BigEndian,&len)
+	
+	// // buf := bytes.NewBuffer(lenghtbyte)
+	// // len, _ := binary.ReadVarint(buf)
+	// fmt.Println(length, lenghtbyte, len)
 
-	// ajoutMess("beurk", vide)
-	// // affichageArbre()
-	// ajoutMess("bip", vide)
-	// // affichageArbre()
-	// ajoutMess("boop", vide)
-	// affichageArbre()
 
-	conn := session()
-	fmt.Println("*********************************************************************************************")
-	// waitwaitmessages(conn)
+	initialisationArbre()
+	affichageArbre()
+
+	ajoutMess("beurk", vide)
+	time.Sleep(2)
+	// affichageArbre()
+	ajoutMess("bip", vide)
+	time.Sleep(2)
+	// affichageArbre()
+	ajoutMess("boop", vide)
+	time.Sleep(2)
+	affichageArbre()
+	time.Sleep(2)
+
+	h := sha256.Sum256(a.racine.value)
+	ajoutMess("connection reussie", h[:])
+
+	h = sha256.Sum256(a.racine.value)
+	buf, n := rempDatum(h[:])
+	fmt.Println(string(buf))
+	fmt.Println(n)
+	id := []byte{1,1,1,1}
+	bufE := rempMess(130, n, buf, id)
+	fmt.Println()
+	afficheDatum(bufE)
 
 	liste := chercherPairs()
 	fmt.Printf("liste : %s\n", liste)
@@ -1063,9 +1142,6 @@ func main() {
 	fmt.Println("*********************************************************************************************")
 	fmt.Println("addddddrrrrr ", adr)
 
-	// adr2, _ := net.ResolveUDPAddr("udp", serverADDRESS)
-	// adr2, _ := net.ResolveUDPAddr("udp", adr)
-	// nat(conn, adr2)
 
 	hello(adr, conn)
 	// fmt.Println()
@@ -1079,6 +1155,6 @@ func main() {
 	// ajoutMess("connection reussie", hash)
 	// affichageArbre()
 
-	defer conn.Close()
+	// defer conn.Close()
 
 }
