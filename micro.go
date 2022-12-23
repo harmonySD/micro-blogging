@@ -6,17 +6,17 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
-	"encoding/base64"
 	"net"
 	"net/http"
-	"time"
 	"os"
+	"time"
 	// "math/rand"
 )
 
@@ -510,31 +510,31 @@ func session(name string) net.PacketConn {
 	// key := make([]byte, 64)
 
 	if debug {
-		fmt.Printf("\n\n\nformatted : %v %T\n\n", formatted, formatted)
+		fmt.Printf("\n\n\nformatted : %v %T %v\n\n", formatted, formatted, len(formatted))
 		fmt.Printf("str : %v %T\n\n", str, str)
 		fmt.Printf("key : %v %T %v\n\n", key, key, len(key))
 	}
 
 	// on s'enregistre sur le serveur
-	m := jsonEnregistrement{Name: name, Key: key}
+	m := jsonEnregistrement{Name: name, Key: formatted}
 	jsonValue, err := json.Marshal(m)
 	if err != nil {
 		fmt.Printf("marshal\n")
 		log.Fatal(err)
 	}
-	fmt.Printf("\nenregistrement\n\n")
-	fmt.Println(m)
-	if debug {
-		fmt.Printf("Json\n")
-		fmt.Println(jsonValue)
-		fmt.Printf("\n\n")
-	}
+	// fmt.Printf("\nenregistrement\n\n")
+	// fmt.Println(m)
+	// if debug {
+	// 	fmt.Printf("Json\n")
+	// 	fmt.Println(jsonValue)
+	// 	fmt.Printf("\n\n")
+	// }
 	repPost, err := http.Post("https://jch.irif.fr:8443/register", "application/json", bytes.NewBuffer(jsonValue))
 	if err != nil {
 		log.Fatal(err)
 	}
 	repPost.Write(os.Stdout)
-	// fmt.Println(repPost)
+	fmt.Println(repPost)
 	if repPost.StatusCode != 204 {
 		fmt.Printf("\nstatus\n")
 		log.Fatal("status")
@@ -814,10 +814,10 @@ func main() {
 
 	conn := session(name)
 	fmt.Println("*********************************************************************************************")
-	// waitwaitmessages(conn, name)
+	waitwaitmessages(conn, name)
 
-	liste := chercherPairs()
-	fmt.Printf("liste : %s\n", liste)
+	// liste := chercherPairs()
+	// fmt.Printf("liste : %s\n", liste)
 	// var adr string
 	// if liste != "" {
 	// 	pair := chercherPair("jch")
