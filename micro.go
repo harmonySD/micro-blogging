@@ -20,7 +20,7 @@ var debugH = false  // fonction hello et helloReply
 var debugA = false  // fonction arbre de Merkle
 var debugRQ = false // fonction root request
 var debugM = false  // fonction rempMess
-var debugD = false  // fonction datum etc
+var debugD = true   // fonction datum etc
 var debugN = false  // fonction nat etc
 
 var idMess = 0
@@ -246,7 +246,12 @@ func afficheDatum(bufR []byte) {
 			fmt.Println("message datum", bufR[deb:])
 		}
 		deb += 1
-		date := bufR[deb:(deb + 4)]
+		janvier := time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)
+		dateB := bufR[deb:(deb + 4)]
+		buf = bytes.NewReader(dateB)
+		var dateS uint32
+		binary.Read(buf, binary.BigEndian, &dateS)
+		date := janvier.Add(time.Duration(dateS) * time.Second)
 		buf := bytes.NewReader(lenghtbyte)
 		var n uint16
 		binary.Read(buf, binary.BigEndian, &n)
@@ -340,32 +345,12 @@ func rempMess(typMess int, length int, body []byte, id []byte) []byte {
 		fmt.Println("remp mess rootrequest")
 	} else if typMess == 132 || typMess == 133 { // cas nat client
 		fmt.Println("remp mess nat")
-		fmt.Println(body)
 		for k := 0; k < length; k++ {
 			buf[k+i] = body[k]
 		}
 		i += length
-	} else if typMess == 2 { // getDatum
-		fmt.Println("remp mess getDatum")
-		if debugM {
-			fmt.Println(body)
-		}
-		for k := 0; k < length; k++ {
-			buf[k+i] = body[k]
-		}
-		i += length
-	} else if typMess == 130 { // datum
-		fmt.Println("remp mess Datum")
-		fmt.Println("remp mess getDatum")
-		if debugM {
-			fmt.Println(body)
-		}
-		for k := 0; k < length; k++ {
-			buf[k+i] = body[k]
-		}
-		i += length
-	} else if typMess == 131 { // Nodatum
-		fmt.Println("remp mess NoDatum")
+	} else if typMess == 2 || typMess == 130 || typMess == 131 { // getDatum
+		fmt.Println("remp mess getDatum/ Datum/ noDatum")
 		if debugM {
 			fmt.Println(body)
 		}
@@ -374,8 +359,26 @@ func rempMess(typMess int, length int, body []byte, id []byte) []byte {
 		}
 		i += length
 	}
+	// else if typMess == 130 { // datum
+	// 	fmt.Println("remp mess Datum")
+	// 	if debugM {
+	// 		fmt.Println(body)
+	// 	}
+	// 	for k := 0; k < length; k++ {
+	// 		buf[k+i] = body[k]
+	// 	}
+	// 	i += length
+	// } else if typMess == 131 { // Nodatum
+	// 	fmt.Println("remp mess NoDatum")
+	// 	if debugM {
+	// 		fmt.Println(body)
+	// 	}
+	// 	for k := 0; k < length; k++ {
+	// 		buf[k+i] = body[k]
+	// 	}
+	// 	i += length
+	// }
 	// continuer avec la key
-	//continuer avec datum
 	if debugM {
 		fmt.Println("le mess dans rempMEss ", buf)
 	}
@@ -999,46 +1002,34 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
-	// length := 257
-	// lenghtbyte := make([]byte, 2)
-	// binary.BigEndian.PutUint16(lenghtbyte, uint16(length))
-	// nowBuffer := bytes.NewReader(lenghtbyte)
-	// var len uint16
-	// binary.Read(nowBuffer,binary.BigEndian,&len)
 
-	// // buf := bytes.NewBuffer(lenghtbyte)
-	// // len, _ := binary.ReadVarint(buf)
-	// fmt.Println(length, lenghtbyte, len)
+	initialisationArbre()
+	affichageArbre()
 
-	// initialisationArbre()
-	// affichageArbre()
+	ajoutMess("beurk", vide)
+	time.Sleep(1 * time.Second)
+	ajoutMess("bip", vide)
+	time.Sleep(1 * time.Second)
+	ajoutMess("boop", vide)
+	time.Sleep(1 * time.Second)
+	affichageArbre()
+	time.Sleep(1 * time.Second)
 
-	// ajoutMess("beurk", vide)
-	// time.Sleep(2)
-	// // affichageArbre()
-	// ajoutMess("bip", vide)
-	// time.Sleep(2)
-	// // affichageArbre()
-	// ajoutMess("boop", vide)
-	// time.Sleep(2)
-	// affichageArbre()
-	// time.Sleep(2)
+	h := sha256.Sum256(a.racine.value)
+	ajoutMess("connection reussie", h[:])
 
-	// h := sha256.Sum256(a.racine.value)
-	// ajoutMess("connection reussie", h[:])
+	h = sha256.Sum256(a.racine.value)
+	buf, n := rempDatum(h[:])
+	fmt.Println(string(buf))
+	fmt.Println(n)
+	id := []byte{1, 1, 1, 1}
+	bufE := rempMess(130, n, buf, id)
+	fmt.Println()
+	afficheDatum(bufE)
 
-	// h = sha256.Sum256(a.racine.value)
-	// buf, n := rempDatum(h[:])
-	// fmt.Println(string(buf))
-	// fmt.Println(n)
-	// id := []byte{1,1,1,1}
-	// bufE := rempMess(130, n, buf, id)
-	// fmt.Println()
-	// afficheDatum(bufE)
-
-	session()
-	fmt.Println("*********************************************************************************************")
-	waitwaitmessages()
+	// session()
+	// fmt.Println("*********************************************************************************************")
+	// waitwaitmessages()
 
 	// liste := chercherPairs()
 	// fmt.Printf("liste : %s\n", liste)
@@ -1067,6 +1058,6 @@ func main() {
 	// ajoutMess("connection reussie", hash)
 	// affichageArbre()
 
-	defer conn.Close()
+	// defer conn.Close()
 
 }
