@@ -17,7 +17,7 @@ import (
 )
 
 var wg sync.WaitGroup
-
+var justhelloplease = false //si false alors on fera tout les cas dans waitwait
 var myIP = 4
 var debug = false   // fonction session
 var debugP = false  // fonction recherche de pair
@@ -1032,85 +1032,90 @@ func waitwaitmessages(conn net.PacketConn) {
 		hello(serverADDRESS, conn)
 		fmt.Println("\n")
 		//fmt.Println("LA")
-		bufR := make([]byte, 256)
-		_, addr, err := conn.ReadFrom(bufR)
-		if err != nil {
-			//fmt.Printf("read\n")
-			//log.Fatal(err)
-		} else {
-			fmt.Println("LA")
-			switch bufR[4] {
-			case 0: // hello
-				helloreply(addr, bufR, conn)
+		if justhelloplease == false {
+			bufR := make([]byte, 256)
+			_, addr, err := conn.ReadFrom(bufR)
+			if err != nil {
+				//fmt.Printf("read\n")
+				//log.Fatal(err)
+			} else {
 
-			case 128:
-				// helloreply
-				fmt.Println("hello reply non demander")
-				hello(addr.String(), conn)
+				fmt.Println("LA")
+				switch bufR[4] {
+				case 0: // hello
+					fmt.Println("helllllloooooo wwait wait")
+					helloreply(addr, bufR, conn)
 
-			case 1: // rootrequest
-				rootmess(addr, conn, bufR)
-			case 133: // nat s
-				// fmt.Println("IM HERE ")
-				// println(bufR)
+				case 128:
+					// helloreply
+					fmt.Println("hello reply non demander")
+					hello(addr.String(), conn)
 
-				// portByte := (bufR[23:25])
-				// buf := bytes.NewReader(portByte)
-				// var port uint16
-				// binary.Read(buf, binary.BigEndian, &port)
-				// fmt.Printf("port : %d\n", port)
+				case 1: // rootrequest
+					rootmess(addr, conn, bufR)
+				case 133: // nat s
+					// fmt.Println("IM HERE ")
+					// println(bufR)
 
-				// adrtostring := "["
-				// for i := 0; i < 16; i += 2 {
+					// portByte := (bufR[23:25])
+					// buf := bytes.NewReader(portByte)
+					// var port uint16
+					// binary.Read(buf, binary.BigEndian, &port)
+					// fmt.Printf("port : %d\n", port)
 
-				// adr := hex.EncodeToString(bufR[7+i : 7+2+i])
-				// // adr := int(binary.BigEndian.Uint16(bufR[7+i : 7+2+i]))
+					// adrtostring := "["
+					// for i := 0; i < 16; i += 2 {
 
-				// // adrB := bufR[7+i : 7+2+i]
-				// // buf := bytes.NewReader(adrB)
-				// // var adr uint16
-				// // binary.Read(buf, binary.BigEndian, &adr)
-				// if i == 14 {
-				// 	adrtostring = fmt.Sprintf("%s%s]", adrtostring, adr)
-				// } else {
-				// 	adrtostring = fmt.Sprintf("%s%s:", adrtostring, adr)
-				// }
-				// }
-				// adrtostring = fmt.Sprintf("%s:%d", adrtostring, port)
-				// fmt.Printf("adr : %s\n", adrtostring)
-				// adr2, err := net.ResolveUDPAddr("udp", adrtostring)
-				// if err != nil {
-				// 	fmt.Println("resolve wait")
-				// 	log.Fatal(err)
-				// }
-				// helloreply(adr2, bufR, conn)
-				natReceive(conn, bufR)
+					// adr := hex.EncodeToString(bufR[7+i : 7+2+i])
+					// // adr := int(binary.BigEndian.Uint16(bufR[7+i : 7+2+i]))
 
-			// case 129: // rootreply
+					// // adrB := bufR[7+i : 7+2+i]
+					// // buf := bytes.NewReader(adrB)
+					// // var adr uint16
+					// // binary.Read(buf, binary.BigEndian, &adr)
+					// if i == 14 {
+					// 	adrtostring = fmt.Sprintf("%s%s]", adrtostring, adr)
+					// } else {
+					// 	adrtostring = fmt.Sprintf("%s%s:", adrtostring, adr)
+					// }
+					// }
+					// adrtostring = fmt.Sprintf("%s:%d", adrtostring, port)
+					// fmt.Printf("adr : %s\n", adrtostring)
+					// adr2, err := net.ResolveUDPAddr("udp", adrtostring)
+					// if err != nil {
+					// 	fmt.Println("resolve wait")
+					// 	log.Fatal(err)
+					// }
+					// helloreply(adr2, bufR, conn)
+					natReceive(conn, bufR)
 
-			case 2: // getdatum
-				if debug {
-					fmt.Println("getdatum recuuu")
+				// case 129: // rootreply
+
+				case 2: // getdatum
+					if debug {
+						fmt.Println("getdatum recuuu")
+					}
+					//verif qu'on a le hash
+					hashrecu := bufR[7:39]
+					if goodhash(hashrecu) == true {
+						//datummess
+						// datumMess(addr, conn, bufR)
+					} else {
+						noDatumMess(addr, conn, bufR)
+					}
+				// case 131: // nodatum
+
+				// case 130: // datum
+
+				case 254: //erreur
+					fmt.Printf("erreur\n")
+					fmt.Println(string(bufR[7:]))
+					// break
+				default:
+					fmt.Printf("mess de type inconnu")
+					break
 				}
-				//verif qu'on a le hash
-				hashrecu := bufR[7:39]
-				if goodhash(hashrecu) == true {
-					//datummess
-					// datumMess(addr, conn, bufR)
-				} else {
-					noDatumMess(addr, conn, bufR)
-				}
-			// case 131: // nodatum
 
-			// case 130: // datum
-
-			case 254: //erreur
-				fmt.Printf("erreur\n")
-				fmt.Println(string(bufR[7:]))
-				// break
-			default:
-				fmt.Printf("mess de type inconnu")
-				break
 			}
 		}
 		time.Sleep(2 * time.Second)
@@ -1198,7 +1203,9 @@ func main() {
 	// afficheDatum(bufE)
 
 	conn := session()
-	// waitwaitmessages(conn)
+	justhelloplease = true //car on vas envoyer des mssg
+	wg.Add(1)
+	go waitwaitmessages(conn)
 	fmt.Println("*********************************************************************************************")
 	liste := chercherPairs()
 	fmt.Printf("liste : %s\n", liste)
@@ -1216,6 +1223,10 @@ func main() {
 	fmt.Println("addddddrrrrr ", adr)
 
 	hello(adr, conn)
+	fmt.Println("*********************************************************************************************")
+	fmt.Println("requete fini ...MERCI")
+	justhelloplease = false // on se met en lecture on a fini nos requete
+	fmt.Println("*********************************************************************************************")
 	// fmt.Println()
 	// hash := rootrequestmess(adr, conn)
 	// fmt.Println()
