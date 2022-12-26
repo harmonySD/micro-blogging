@@ -11,9 +11,12 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 	// "math/rand"
 )
+
+var wg sync.WaitGroup
 
 var myIP = 4
 var debug = false   // fonction session
@@ -1023,6 +1026,7 @@ func noDatumMess(adr net.Addr, conn net.PacketConn, bufR []byte) {
 // }
 
 func waitwaitmessages(conn net.PacketConn) {
+	defer wg.Done()
 	//attendre un message
 	for {
 		hello(serverADDRESS, conn)
@@ -1222,7 +1226,7 @@ func main() {
 	// fmt.Println()
 	// ajoutMess("connection reussie", hash)
 	// affichageArbre()
-
-	// defer conn.Close()
+	wg.Wait()
+	defer conn.Close()
 
 }
