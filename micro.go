@@ -29,7 +29,7 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serverADDRESS string
-var name = "kitty"
+var name = "oignon"
 
 type jsonMessage struct {
 	Host string `json:"ip"`
@@ -461,21 +461,43 @@ func nat(conn net.PacketConn, adr *net.UDPAddr) {
 	}
 }
 
-func natReceive(conn net.PacketConn, bufR []byte, name string) {
+func natReceive(conn net.PacketConn, bufR []byte) {
 	if debug {
 		fmt.Printf("j'ai recu nat du serveur")
 	}
-	adr := bufR[7:13] // car ipv4
-	adrtostring := string(adr)
+	fmt.Println("IM HERE ")
+	println(bufR)
+
+	portByte := (bufR[23:25])
+	buf := bytes.NewReader(portByte)
+	var port uint16
+	binary.Read(buf, binary.BigEndian, &port)
+	fmt.Printf("port : %d\n", port)
+
+	adrtostring := "["
+	for i := 0; i < 16; i += 2 {
+
+		adr := hex.EncodeToString(bufR[7+i : 7+2+i])
+		// adr := int(binary.BigEndian.Uint16(bufR[7+i : 7+2+i]))
+
+		// adrB := bufR[7+i : 7+2+i]
+		// buf := bytes.NewReader(adrB)
+		// var adr uint16
+		// binary.Read(buf, binary.BigEndian, &adr)
+		if i == 14 {
+			adrtostring = fmt.Sprintf("%s%s]", adrtostring, adr)
+		} else {
+			adrtostring = fmt.Sprintf("%s%s:", adrtostring, adr)
+		}
+	}
+	adrtostring = fmt.Sprintf("%s:%d", adrtostring, port)
+	fmt.Printf("adr : %s\n", adrtostring)
 	adr2, err := net.ResolveUDPAddr("udp", adrtostring)
 	if err != nil {
-		fmt.Printf("resolve")
+		fmt.Println("resolve wait")
 		log.Fatal(err)
 	}
-	namebyte := []byte(name)
-	bufE := rempMess(128, 0, namebyte, bufR)
-
-	_, err = conn.WriteTo(bufE, adr2)
+	helloreply(adr2, bufR, conn)
 }
 
 // fonction qui envoie un helloreply apres avoir recu un hello
@@ -524,23 +546,30 @@ func hello(addrconn string, conn net.PacketConn) {
 
 	brk1 := 0
 	tps := 2
+	notHR := false
+	var bufE []byte
 	for brk1 != 1 {
-		bufE := make([]byte, 256)
+		if notHR == false {
+			bufE = make([]byte, 256)
+		}
 
 		if brk1 != 1 {
 			// preparation message bufE ENVOYE HELLO
-			userbyte := []byte(name)
-			bufE = rempMess(0, 0, userbyte, vide)
-			if debugH {
-				fmt.Println("le mess dans bufE ", bufE)
-				fmt.Println("mess lisible ", string(bufE[7:]))
+			if notHR == false {
+
+				userbyte := []byte(name)
+				bufE = rempMess(0, 0, userbyte, vide)
+				if debugH {
+					fmt.Println("le mess dans bufE ", bufE)
+					fmt.Println("mess lisible ", string(bufE[7:]))
+				}
+				_, err = conn.WriteTo(bufE, addr2)
+				if err != nil {
+					fmt.Printf("write\n")
+					log.Fatal(err)
+				}
+				fmt.Printf("hello envoye !\n")
 			}
-			_, err = conn.WriteTo(bufE, addr2)
-			if err != nil {
-				fmt.Printf("write\n")
-				log.Fatal(err)
-			}
-			fmt.Printf("hello envoye !\n")
 		}
 
 		if debugH {
@@ -549,7 +578,7 @@ func hello(addrconn string, conn net.PacketConn) {
 		// prepare bufrecevoir pour ecrire le message recu dedans
 		bufR := make([]byte, 256)
 		conn.SetReadDeadline(time.Now().Add(time.Duration(tps) * time.Second))
-		_, _, err = conn.ReadFrom(bufR)
+		_, addr, err := conn.ReadFrom(bufR)
 		if debugH {
 			fmt.Println(bufR[:20])
 		}
@@ -558,7 +587,7 @@ func hello(addrconn string, conn net.PacketConn) {
 			nat(conn, addr2)
 			for {
 				bufR := make([]byte, 256)
-				_, _, err = conn.ReadFrom(bufR)
+				_, addr, err = conn.ReadFrom(bufR)
 				if err == nil {
 					fmt.Println(bufR)
 					break
@@ -585,10 +614,25 @@ func hello(addrconn string, conn net.PacketConn) {
 			if debugH {
 				fmt.Printf("message erreur\n")
 				fmt.Println(string(bufR[7:]))
+				//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+				notHR = true
 			}
+		} else if bufR[4] == 133 { //cest un nat transversal ! on doit y rpondre
+			fmt.Println("nat transversal dans hello ")
+			natReceive(conn, bufR)
+			//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+			notHR = true
+		} else if bufR[4] == 0 {
+			fmt.Println("hello dans hello ")
+			helloreply(addr, bufR, conn)
+			//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+			notHR = true
 		} else {
-			fmt.Printf("Erreur\n")
+			fmt.Printf("Erreur LA PTN\n")
+			fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
 			fmt.Println((bufR[:20]))
+			//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+			notHR = true
 		}
 		if brk1 > 2 {
 			fmt.Printf("PROBLEME HELLO\n")
@@ -1003,39 +1047,40 @@ func waitwaitmessages(conn net.PacketConn) {
 			case 1: // rootrequest
 				rootmess(addr, conn, bufR)
 			case 133: // nat s
-				fmt.Println("IM HERE ")
-				println(bufR)
+				// fmt.Println("IM HERE ")
+				// println(bufR)
 
-				portByte := (bufR[23:25])
-				buf := bytes.NewReader(portByte)
-				var port uint16
-				binary.Read(buf, binary.BigEndian, &port)
-				fmt.Printf("port : %d\n", port)
+				// portByte := (bufR[23:25])
+				// buf := bytes.NewReader(portByte)
+				// var port uint16
+				// binary.Read(buf, binary.BigEndian, &port)
+				// fmt.Printf("port : %d\n", port)
 
-				adrtostring := "["
-				for i := 0; i < 16; i += 2 {
+				// adrtostring := "["
+				// for i := 0; i < 16; i += 2 {
 
-					adr := hex.EncodeToString(bufR[7+i : 7+2+i])
-					// adr := int(binary.BigEndian.Uint16(bufR[7+i : 7+2+i]))
+				// adr := hex.EncodeToString(bufR[7+i : 7+2+i])
+				// // adr := int(binary.BigEndian.Uint16(bufR[7+i : 7+2+i]))
 
-					// adrB := bufR[7+i : 7+2+i]
-					// buf := bytes.NewReader(adrB)
-					// var adr uint16
-					// binary.Read(buf, binary.BigEndian, &adr)
-					if i == 14 {
-						adrtostring = fmt.Sprintf("%s%s]", adrtostring, adr)
-					} else {
-						adrtostring = fmt.Sprintf("%s%s:", adrtostring, adr)
-					}
-				}
-				adrtostring = fmt.Sprintf("%s:%d", adrtostring, port)
-				fmt.Printf("adr : %s\n", adrtostring)
-				adr2, err := net.ResolveUDPAddr("udp", adrtostring)
-				if err != nil {
-					fmt.Println("resolve wait")
-					log.Fatal(err)
-				}
-				helloreply(adr2, bufR, conn)
+				// // adrB := bufR[7+i : 7+2+i]
+				// // buf := bytes.NewReader(adrB)
+				// // var adr uint16
+				// // binary.Read(buf, binary.BigEndian, &adr)
+				// if i == 14 {
+				// 	adrtostring = fmt.Sprintf("%s%s]", adrtostring, adr)
+				// } else {
+				// 	adrtostring = fmt.Sprintf("%s%s:", adrtostring, adr)
+				// }
+				// }
+				// adrtostring = fmt.Sprintf("%s:%d", adrtostring, port)
+				// fmt.Printf("adr : %s\n", adrtostring)
+				// adr2, err := net.ResolveUDPAddr("udp", adrtostring)
+				// if err != nil {
+				// 	fmt.Println("resolve wait")
+				// 	log.Fatal(err)
+				// }
+				// helloreply(adr2, bufR, conn)
+				natReceive(conn, bufR)
 
 			// case 129: // rootreply
 
@@ -1149,24 +1194,24 @@ func main() {
 	// afficheDatum(bufE)
 
 	conn := session()
-	waitwaitmessages(conn)
+	// waitwaitmessages(conn)
+	fmt.Println("*********************************************************************************************")
+	liste := chercherPairs()
+	fmt.Printf("liste : %s\n", liste)
+	var adr string
+	if liste != "" {
+		pair := chercherPair("poireau")
+		fmt.Printf("name : %s \n", pair.Name)
+		i := 0
+		for i = 0; i < len(pair.Addresse); i++ {
+			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+		}
+		adr = fmt.Sprintf("[%s]:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	}
+	fmt.Println("*********************************************************************************************")
+	fmt.Println("addddddrrrrr ", adr)
 
-	// liste := chercherPairs()
-	// fmt.Printf("liste : %s\n", liste)
-	// var adr string
-	// if liste != "" {
-	// 	pair := chercherPair("poireau")
-	// 	fmt.Printf("name : %s \n", pair.Name)
-	// 	i := 0
-	// 	for i = 0; i < len(pair.Addresse); i++ {
-	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-	// 	}
-	// 	adr = fmt.Sprintf("[%s]:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
-	// }
-	// fmt.Println("*********************************************************************************************")
-	// fmt.Println("addddddrrrrr ", adr)
-
-	// hello(adr, conn)
+	hello(adr, conn)
 	// fmt.Println()
 	// hash := rootrequestmess(adr, conn)
 	// fmt.Println()

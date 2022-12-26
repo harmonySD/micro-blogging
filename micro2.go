@@ -1,9 +1,10 @@
-// package main
+package main
 
 import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -14,6 +15,7 @@ import (
 	// "math/rand"
 )
 
+var myIP = 4
 var debug = false   // fonction session
 var debugP = false  // fonction recherche de pair
 var debugH = false  // fonction hello et helloReply
@@ -93,12 +95,12 @@ func affichageNoeud(n *noeud) {
 }
 
 func goodhash(hash []byte) bool {
-	// h := sha256.Sum256(a.racine.value)
-	// if bytes.Compare(h, hash) == 0 {
-	// 	return true
-	// } else {
-	return goodhashnoued(a.racine, hash)
-	// }
+	h := sha256.Sum256(a.racine.value)
+	if bytes.Equal(h[:], hash) {
+		return true
+	} else {
+		return goodhashnoued(a.racine, hash)
+	}
 
 }
 
@@ -185,38 +187,89 @@ func rempMessArbre(mess string, rep []byte) []byte {
 	return buf
 }
 
-// func rempDatum(hash []byte) []byte, int {
-// 	buf := make([]byte, buflen)
-// 	n = 0
-// 	var nD noeud
-// 	h := sha256.Sum256(a.racine.value)
-// 	if (bytes.Compare(hash, h) == 0){
-// 		nD = a.racine
-// 	} else {
-// 		no := a.racine
-// 	hg := no.value[1:33]
-// 	hd := no.value[33:]
-// 	for (bytes.Compare(hash, hd) != 0 && bytes.Compare(hash, hg) != 0)){
-// 		no = no.gauche
-// 		hg := no.value[1:33]
-// 		hd := no.value[33:]
-// 	}
-// 	if bytes.Compare(hash, hd) == 0 {
-// 		nD = no.droit
-// 	} else if bytes.Compare(hash, hg) == 0 {
-// 		nD = no.gauche
-// 	}
-// }
+func rempDatum(hash []byte) ([]byte, int) {
+	buf := make([]byte, 1024)
+	n := 0
+	var nD *noeud
+	h := sha256.Sum256(a.racine.value)
+	if bytes.Equal(h[:], hash) {
+		nD = a.racine
+	} else {
+		no := a.racine
+		hg := no.value[1:33]
+		hd := no.value[33:]
+		for (!bytes.Equal(hash, hd)) && (!bytes.Equal(hash, hg)) {
+			no = no.gauche
+			hg = no.value[1:33]
+			hd = no.value[33:]
+		}
+		if bytes.Equal(hash, hd) {
+			nD = no.droit
+		} else if bytes.Equal(hash, hg) {
+			nD = no.gauche
+		}
+	}
+	taille := 1 + 4 + 32 + 2
+	for nD.value[0] != 0 {
+		length := int(binary.BigEndian.Uint16(nD.droit.value[taille-2 : taille]))
+		copy(buf[n:(n+taille+length)], nD.droit.value)
+		n += taille + length
+		nD = nD.gauche
+	}
 
-// for nD.value[0] != 0 {
+	length := int(binary.BigEndian.Uint16(nD.value[taille-2 : taille]))
 
-// }
-// 	taille := 1 + 4 + 32 + 2
-// 	length := binary.BigEndian.Uint16(nd.value[taille-2:taille])
-// 	copy(buf[n:(n+taille)], nD.value)
+	copy(buf[n:(n+taille+length)], nD.value)
+	n += taille + length
+	if debugD {
+		fmt.Println("buf ", buf[:n])
+	}
+	n += 32
+	bufF := make([]byte, n)
+	copy(bufF[:32], hash)
+	copy(bufF[32:], buf)
+	return bufF, n
+}
 
-// 	return buf, n
-// }
+func afficheDatum(bufR []byte) {
+	lenghtbyte := bufR[5:7]
+	buf := bytes.NewReader(lenghtbyte)
+	var n uint16
+	binary.Read(buf, binary.BigEndian, &n)
+	if debugD {
+		fmt.Println("taille ", int(n))
+		fmt.Println("message datum", bufR)
+	}
+	deb := 4 + 1 + 2 + 32
+	for int(n) > deb {
+		if debugD {
+			fmt.Println("\n\ntaille ", deb)
+			fmt.Println("message datum", bufR[deb:])
+		}
+		deb += 1
+		date := bufR[deb:(deb + 4)]
+		buf := bytes.NewReader(lenghtbyte)
+		var n uint16
+		binary.Read(buf, binary.BigEndian, &n)
+		deb += 4
+		hash := bufR[deb:(deb + 32)]
+		deb += 32
+		length := int(binary.BigEndian.Uint16(bufR[deb:(deb + 2)]))
+		deb += 2
+		mess := string(bufR[deb:(deb + length)])
+		deb += length
+		if hash[0] == 0 {
+			fmt.Printf("message datant du %v, %v\n\n", date, mess)
+		} else {
+			fmt.Printf("message datant du %v, repondant a %v, %v\n\n", date, hash, mess)
+		}
+		if debugD {
+			fmt.Println("ou ", n, deb)
+		}
+
+	}
+
+}
 
 // body peut etre username si hello/helloreply
 func rempMess(typMess int, length int, body []byte, id []byte) []byte {
@@ -301,7 +354,14 @@ func rempMess(typMess int, length int, body []byte, id []byte) []byte {
 		i += length
 	} else if typMess == 130 { // datum
 		fmt.Println("remp mess Datum")
-
+		fmt.Println("remp mess getDatum")
+		if debugM {
+			fmt.Println(body)
+		}
+		for k := 0; k < length; k++ {
+			buf[k+i] = body[k]
+		}
+		i += length
 	} else if typMess == 131 { // Nodatum
 		fmt.Println("remp mess NoDatum")
 		if debugM {
@@ -349,10 +409,6 @@ func nat(conn net.PacketConn, adr *net.UDPAddr) {
 		fmt.Println(adr.IP[i+len(adr.IP)-16])
 		buf[i] = adr.IP[i+len(adr.IP)-16]
 	}
-
-	adrport := uint16(adr.Port) ^ 0xFFFF
-	fmt.Println("adrport ", adrport)
-	fmt.Println("oxffff ", 0xFFFF)
 
 	bufport := make([]byte, 2)
 	binary.BigEndian.PutUint16(bufport, uint16(adr.Port))
@@ -404,21 +460,44 @@ func nat(conn net.PacketConn, adr *net.UDPAddr) {
 		fmt.Println("nat envoyer")
 	}
 }
-func natReceive(conn net.PacketConn, bufR []byte, name string) {
+
+func natReceive(conn net.PacketConn, bufR []byte) {
 	if debug {
 		fmt.Printf("j'ai recu nat du serveur")
 	}
-	adr := bufR[7:13] // car ipv4
-	adrtostring := string(adr)
+	fmt.Println("IM HERE ")
+	println(bufR)
+
+	portByte := (bufR[23:25])
+	buf := bytes.NewReader(portByte)
+	var port uint16
+	binary.Read(buf, binary.BigEndian, &port)
+	fmt.Printf("port : %d\n", port)
+
+	adrtostring := "["
+	for i := 0; i < 16; i += 2 {
+
+		adr := hex.EncodeToString(bufR[7+i : 7+2+i])
+		// adr := int(binary.BigEndian.Uint16(bufR[7+i : 7+2+i]))
+
+		// adrB := bufR[7+i : 7+2+i]
+		// buf := bytes.NewReader(adrB)
+		// var adr uint16
+		// binary.Read(buf, binary.BigEndian, &adr)
+		if i == 14 {
+			adrtostring = fmt.Sprintf("%s%s]", adrtostring, adr)
+		} else {
+			adrtostring = fmt.Sprintf("%s%s:", adrtostring, adr)
+		}
+	}
+	adrtostring = fmt.Sprintf("%s:%d", adrtostring, port)
+	fmt.Printf("adr : %s\n", adrtostring)
 	adr2, err := net.ResolveUDPAddr("udp", adrtostring)
 	if err != nil {
-		fmt.Printf("resolve")
+		fmt.Println("resolve wait")
 		log.Fatal(err)
 	}
-	namebyte := []byte(name)
-	bufE := rempMess(128, 0, namebyte, bufR)
-
-	_, err = conn.WriteTo(bufE, adr2)
+	helloreply(adr2, bufR, conn)
 }
 
 // fonction qui envoie un helloreply apres avoir recu un hello
@@ -450,7 +529,7 @@ func helloreply(adr net.Addr, bufR []byte, conn net.PacketConn) {
 	}
 }
 
-// focntion qui envoie hello et attend helloreply
+// fonction qui envoie hello et attend helloreply
 func hello(addrconn string, conn net.PacketConn) {
 	if debugH {
 		fmt.Printf("hello\n")
@@ -467,23 +546,30 @@ func hello(addrconn string, conn net.PacketConn) {
 
 	brk1 := 0
 	tps := 2
+	notHR := false
+	var bufE []byte
 	for brk1 != 1 {
-		bufE := make([]byte, 256)
+		if notHR == false {
+			bufE = make([]byte, 256)
+		}
 
 		if brk1 != 1 {
 			// preparation message bufE ENVOYE HELLO
-			userbyte := []byte(name)
-			bufE = rempMess(0, 0, userbyte, vide)
-			if debugH {
-				fmt.Println("le mess dans bufE ", bufE)
-				fmt.Println("mess lisible ", string(bufE[7:]))
+			if notHR == false {
+
+				userbyte := []byte(name)
+				bufE = rempMess(0, 0, userbyte, vide)
+				if debugH {
+					fmt.Println("le mess dans bufE ", bufE)
+					fmt.Println("mess lisible ", string(bufE[7:]))
+				}
+				_, err = conn.WriteTo(bufE, addr2)
+				if err != nil {
+					fmt.Printf("write\n")
+					log.Fatal(err)
+				}
+				fmt.Printf("hello envoye !\n")
 			}
-			_, err = conn.WriteTo(bufE, addr2)
-			if err != nil {
-				fmt.Printf("write\n")
-				log.Fatal(err)
-			}
-			fmt.Printf("hello envoye !\n")
 		}
 
 		if debugH {
@@ -492,7 +578,7 @@ func hello(addrconn string, conn net.PacketConn) {
 		// prepare bufrecevoir pour ecrire le message recu dedans
 		bufR := make([]byte, 256)
 		conn.SetReadDeadline(time.Now().Add(time.Duration(tps) * time.Second))
-		_, _, err = conn.ReadFrom(bufR)
+		_, addr, err := conn.ReadFrom(bufR)
 		if debugH {
 			fmt.Println(bufR[:20])
 		}
@@ -501,7 +587,7 @@ func hello(addrconn string, conn net.PacketConn) {
 			nat(conn, addr2)
 			for {
 				bufR := make([]byte, 256)
-				_, _, err = conn.ReadFrom(bufR)
+				_, addr, err = conn.ReadFrom(bufR)
 				if err == nil {
 					fmt.Println(bufR)
 					break
@@ -528,11 +614,25 @@ func hello(addrconn string, conn net.PacketConn) {
 			if debugH {
 				fmt.Printf("message erreur\n")
 				fmt.Println(string(bufR[7:]))
+				//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+				notHR = true
 			}
+		} else if bufR[4] == 133 { //cest un nat transversal ! on doit y rpondre
+			fmt.Println("nat transversal dans hello ")
+			natReceive(conn, bufR)
+			//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+			notHR = true
+		} else if bufR[4] == 0 {
+			fmt.Println("hello dans hello ")
+			helloreply(addr, bufR, conn)
+			//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+			notHR = true
 		} else {
-			fmt.Printf("Erreur\n")
+			fmt.Printf("Erreur LA PTN\n")
+			fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
 			fmt.Println((bufR[:20]))
-			break
+			//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+			notHR = true
 		}
 		if brk1 > 2 {
 			fmt.Printf("PROBLEME HELLO\n")
@@ -681,7 +781,7 @@ func session() net.PacketConn {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7369)
+	port := fmt.Sprintf(":%d", 7288)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -820,7 +920,7 @@ func getDatumMess(adr string, conn net.PacketConn, hash []byte) {
 			fmt.Println("demande getdatum envoyer! ")
 		}
 		// prepare bufrecevoir pour ecrire le message recu dedans
-		bufR := make([]byte, 256)
+		bufR := make([]byte, 1024)
 		conn.SetReadDeadline(time.Now().Add(time.Duration(tps) * time.Second))
 		_, _, err = conn.ReadFrom(bufR)
 		if err != nil {
@@ -835,7 +935,7 @@ func getDatumMess(adr string, conn net.PacketConn, hash []byte) {
 			// verif la valeur du hash
 			if bytes.Compare(hash, bufR[7:39]) == 0 {
 				if debugD {
-					fmt.Println("meme hash")
+					fmt.Println("meme hash no")
 				}
 				fmt.Printf("recu NOdatum correct\n")
 				//appel fonction pour afficher les mess du hash
@@ -847,7 +947,7 @@ func getDatumMess(adr string, conn net.PacketConn, hash []byte) {
 			// verif la valeur du hash
 			if bytes.Compare(hash, bufR[7:39]) == 0 {
 				if debugD {
-					fmt.Println("meme hash")
+					fmt.Println("meme hash datum")
 				}
 				fmt.Printf("recu datum correct\n")
 				fmt.Println(string(bufR[(39 + 1 + 4 + 32):]))
@@ -925,6 +1025,8 @@ func noDatumMess(adr net.Addr, conn net.PacketConn, bufR []byte) {
 func waitwaitmessages(conn net.PacketConn) {
 	//attendre un message
 	for {
+		hello(serverADDRESS, conn)
+		fmt.Println("\n")
 		//fmt.Println("LA")
 		bufR := make([]byte, 256)
 		_, addr, err := conn.ReadFrom(bufR)
@@ -945,15 +1047,40 @@ func waitwaitmessages(conn net.PacketConn) {
 			case 1: // rootrequest
 				rootmess(addr, conn, bufR)
 			case 133: // nat s
-				fmt.Println("IM HERE ")
-				adr := bufR[7:13] // car ipv4
-				adrtostring := string(adr)
-				adr2, err := net.ResolveUDPAddr("udp", adrtostring)
-				if err != nil {
-					fmt.Println("resolve wait")
-					log.Fatal(err)
-				}
-				helloreply(adr2, bufR, conn)
+				// fmt.Println("IM HERE ")
+				// println(bufR)
+
+				// portByte := (bufR[23:25])
+				// buf := bytes.NewReader(portByte)
+				// var port uint16
+				// binary.Read(buf, binary.BigEndian, &port)
+				// fmt.Printf("port : %d\n", port)
+
+				// adrtostring := "["
+				// for i := 0; i < 16; i += 2 {
+
+				// adr := hex.EncodeToString(bufR[7+i : 7+2+i])
+				// // adr := int(binary.BigEndian.Uint16(bufR[7+i : 7+2+i]))
+
+				// // adrB := bufR[7+i : 7+2+i]
+				// // buf := bytes.NewReader(adrB)
+				// // var adr uint16
+				// // binary.Read(buf, binary.BigEndian, &adr)
+				// if i == 14 {
+				// 	adrtostring = fmt.Sprintf("%s%s]", adrtostring, adr)
+				// } else {
+				// 	adrtostring = fmt.Sprintf("%s%s:", adrtostring, adr)
+				// }
+				// }
+				// adrtostring = fmt.Sprintf("%s:%d", adrtostring, port)
+				// fmt.Printf("adr : %s\n", adrtostring)
+				// adr2, err := net.ResolveUDPAddr("udp", adrtostring)
+				// if err != nil {
+				// 	fmt.Println("resolve wait")
+				// 	log.Fatal(err)
+				// }
+				// helloreply(adr2, bufR, conn)
+				natReceive(conn, bufR)
 
 			// case 129: // rootreply
 
@@ -982,6 +1109,7 @@ func waitwaitmessages(conn net.PacketConn) {
 				break
 			}
 		}
+		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -1028,26 +1156,51 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
+	// length := 257
+	// lenghtbyte := make([]byte, 2)
+	// binary.BigEndian.PutUint16(lenghtbyte, uint16(length))
+	// nowBuffer := bytes.NewReader(lenghtbyte)
+	// var len uint16
+	// binary.Read(nowBuffer,binary.BigEndian,&len)
 
-	// initialisationArbre()
-	// affichageArbre()
+	// // buf := bytes.NewBuffer(lenghtbyte)
+	// // len, _ := binary.ReadVarint(buf)
+	// fmt.Println(length, lenghtbyte, len)
+
+	initialisationArbre()
+	affichageArbre()
 
 	// ajoutMess("beurk", vide)
+	// time.Sleep(2)
 	// // affichageArbre()
 	// ajoutMess("bip", vide)
+	// time.Sleep(2)
 	// // affichageArbre()
 	// ajoutMess("boop", vide)
+	// time.Sleep(2)
 	// affichageArbre()
+	// time.Sleep(2)
+
+	// h := sha256.Sum256(a.racine.value)
+	// ajoutMess("connection reussie", h[:])
+
+	// h = sha256.Sum256(a.racine.value)
+	// buf, n := rempDatum(h[:])
+	// fmt.Println(string(buf))
+	// fmt.Println(n)
+	// id := []byte{1, 1, 1, 1}
+	// bufE := rempMess(130, n, buf, id)
+	// fmt.Println()
+	// afficheDatum(bufE)
 
 	conn := session()
-	fmt.Println("*********************************************************************************************")
 	waitwaitmessages(conn)
-
+	// fmt.Println("*********************************************************************************************")
 	// liste := chercherPairs()
 	// fmt.Printf("liste : %s\n", liste)
 	// var adr string
 	// if liste != "" {
-	// 	pair := chercherPair("jch")
+	// 	pair := chercherPair("poireau")
 	// 	fmt.Printf("name : %s \n", pair.Name)
 	// 	i := 0
 	// 	for i = 0; i < len(pair.Addresse); i++ {
@@ -1057,10 +1210,6 @@ func main() {
 	// }
 	// fmt.Println("*********************************************************************************************")
 	// fmt.Println("addddddrrrrr ", adr)
-
-	// adr2, _ := net.ResolveUDPAddr("udp", serverADDRESS)
-	// adr2, _ := net.ResolveUDPAddr("udp", adr)
-	// nat(conn, adr2)
 
 	// hello(adr, conn)
 	// fmt.Println()
@@ -1074,6 +1223,6 @@ func main() {
 	// ajoutMess("connection reussie", hash)
 	// affichageArbre()
 
-	defer conn.Close()
+	// defer conn.Close()
 
 }
