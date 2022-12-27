@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 	// "math/rand"
@@ -27,6 +28,7 @@ var debugRQ = false // fonction root request
 var debugM = false  // fonction rempMess
 var debugD = false  // fonction datum etc
 var debugN = true   // fonction nat etc
+var debugIP = true
 
 var idMess = 0
 var a arbreMerkle
@@ -808,6 +810,10 @@ func session() net.PacketConn {
 		// envoie hello et dedans appel helloreply si recoit hello du retour sort quand a recu le helloreply
 		// du serveur plus envoyer hello reply au serveur
 		handshake(addrconn, conn)
+		if myIP == 4 {
+			i++
+		}
+
 	}
 	return conn
 }
@@ -1165,6 +1171,13 @@ func chercherPair(username string) jsonPeer {
 }
 
 func main() {
+	arg1 := os.Args[1]
+	if arg1 == "6" {
+		if debugIP {
+			fmt.Println("Vous avez ipv6")
+		}
+		myIP = 6
+	}
 	// length := 257
 	// lenghtbyte := make([]byte, 2)
 	// binary.BigEndian.PutUint16(lenghtbyte, uint16(length))
