@@ -19,14 +19,14 @@ import (
 var wg sync.WaitGroup
 var justhelloplease = false //si false alors on fera tout les cas dans waitwait
 var myIP = 4
-var debug = false   // fonction session
-var debugP = false  // fonction recherche de pair
-var debugH = false  // fonction hello et helloReply
-var debugA = false  // fonction arbre de Merkle
-var debugRQ = false // fonction root request
-var debugM = false  // fonction rempMess
-var debugD = false  // fonction datum etc
-var debugN = true   // fonction nat etc
+var debug = false  // fonction session
+var debugP = false // fonction recherche de pair
+var debugH = false // fonction hello et helloReply
+var debugA = false // fonction arbre de Merkle
+var debugRQ = true // fonction root request
+var debugM = true  // fonction rempMess
+var debugD = false // fonction datum etc
+var debugN = true  // fonction nat etc
 
 var idMess = 0
 var a arbreMerkle
@@ -318,9 +318,11 @@ func rempMess(typMess int, length int, body []byte, id []byte) []byte {
 	if typMess == 129 { // cas root
 		fmt.Println("remp mess root")
 		hracine := sha256.Sum256(a.racine.value)
+		fmt.Println("tototoototototo1")
 		for k := 0; k < length; k++ {
 			buf[k+i] = hracine[k]
 		}
+		fmt.Println("tototoototototo")
 		i += length
 	} else if typMess == 128 || typMess == 0 { //cas helloreply
 		fmt.Println("remp mess hello")
@@ -630,6 +632,24 @@ func hello(addrconn string, conn net.PacketConn) {
 			helloreply(addr, bufR, conn)
 			//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
 			notHR = true
+		} else if bufR[4] == 1 {
+			fmt.Println("root request dans hello")
+			rootmess(addr, conn, bufR)
+			notHR = true
+		} else if bufR[4] == 129 {
+			fmt.Println("root dans hello")
+			notHR = true
+		} else if bufR[4] == 2 {
+			fmt.Println("getdatum recuuu dans hello")
+			//verif qu'on a le hash
+			hashrecu := bufR[7:39]
+			if goodhash(hashrecu) == true {
+				//datummess
+				// datumMess(addr, conn, bufR)
+			} else {
+				noDatumMess(addr, conn, bufR)
+			}
+			notHR = true
 		} else {
 			fmt.Printf("Erreur LA PTN\n")
 			fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
@@ -872,7 +892,7 @@ func rootrequestmess(adr string, conn net.PacketConn) []byte {
 // j'ai recu une rootrequest et je te reponds pas le hash de ma racine (racine hacher beurk beurk)
 func rootmess(adr net.Addr, conn net.PacketConn, bufR []byte) {
 	if debugRQ {
-		fmt.Printf("rootRequest for you ")
+		fmt.Printf("rootRequest for you \n")
 	}
 	//remplir un message avec type 129 et hash de la racine dans le corps length =32
 	bufE := rempMess(129, 32, vide, bufR)
@@ -1179,28 +1199,28 @@ func main() {
 	initialisationArbre()
 	affichageArbre()
 
-	// ajoutMess("beurk", vide)
-	// time.Sleep(2)
-	// // affichageArbre()
-	// ajoutMess("bip", vide)
-	// time.Sleep(2)
-	// // affichageArbre()
-	// ajoutMess("boop", vide)
-	// time.Sleep(2)
+	ajoutMess("beurk", vide)
+	time.Sleep(2)
 	// affichageArbre()
-	// time.Sleep(2)
+	ajoutMess("bip", vide)
+	time.Sleep(2)
+	// affichageArbre()
+	ajoutMess("boop", vide)
+	time.Sleep(2)
+	affichageArbre()
+	time.Sleep(2)
 
-	// h := sha256.Sum256(a.racine.value)
-	// ajoutMess("connection reussie", h[:])
+	h := sha256.Sum256(a.racine.value)
+	ajoutMess("connection reussie", h[:])
 
-	// h = sha256.Sum256(a.racine.value)
-	// buf, n := rempDatum(h[:])
-	// fmt.Println(string(buf))
-	// fmt.Println(n)
-	// id := []byte{1, 1, 1, 1}
-	// bufE := rempMess(130, n, buf, id)
-	// fmt.Println()
-	// afficheDatum(bufE)
+	h = sha256.Sum256(a.racine.value)
+	buf, n := rempDatum(h[:])
+	fmt.Println(string(buf))
+	fmt.Println(n)
+	id := []byte{1, 1, 1, 1}
+	bufE := rempMess(130, n, buf, id)
+	fmt.Println()
+	afficheDatum(bufE)
 
 	conn := session()
 	wg.Add(1)

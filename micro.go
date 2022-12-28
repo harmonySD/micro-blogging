@@ -20,14 +20,14 @@ import (
 var wg sync.WaitGroup
 var justhelloplease = false //si false alors on fera tout les cas dans waitwait
 var myIP = 4
-var debug = false   // fonction session
-var debugP = false  // fonction recherche de pair
-var debugH = false  // fonction hello et helloReply
-var debugA = false  // fonction arbre de Merkle
-var debugRQ = false // fonction root request
-var debugM = false  // fonction rempMess
-var debugD = false  // fonction datum etc
-var debugN = true   // fonction nat etc
+var debug = false  // fonction session
+var debugP = false // fonction recherche de pair
+var debugH = false // fonction hello et helloReply
+var debugA = false // fonction arbre de Merkle
+var debugRQ = true // fonction root request
+var debugM = false // fonction rempMess
+var debugD = false // fonction datum etc
+var debugN = true  // fonction nat etc
 var debugIP = true
 
 var idMess = 0
@@ -632,6 +632,24 @@ func hello(addrconn string, conn net.PacketConn) {
 			helloreply(addr, bufR, conn)
 			//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
 			notHR = true
+		} else if bufR[4] == 1 {
+			fmt.Println("root request dans hello")
+			rootmess(addr, conn, bufR)
+			notHR = true
+		} else if bufR[4] == 129 {
+			fmt.Println("root dans hello")
+			notHR = true
+		} else if bufR[4] == 2 {
+			fmt.Println("getdatum recuuu dans hello")
+			//verif qu'on a le hash
+			hashrecu := bufR[7:39]
+			if goodhash(hashrecu) == true {
+				//datummess
+				// datumMess(addr, conn, bufR)
+			} else {
+				noDatumMess(addr, conn, bufR)
+			}
+			notHR = true
 		} else {
 			fmt.Printf("Erreur LA PTN\n")
 			fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
@@ -786,7 +804,7 @@ func session() net.PacketConn {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7283)
+	port := fmt.Sprintf(":%d", 7289)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -1238,12 +1256,13 @@ func main() {
 	hello(adr, conn)
 	fmt.Println("*********************************************************************************************")
 	fmt.Println("requete fini ...MERCI")
-	justhelloplease = false // on se met en lecture on a fini nos requete
+	// justhelloplease = false // on se met en lecture on a fini nos requete
 	fmt.Println("*********************************************************************************************")
 	// fmt.Println()
-	// hash := rootrequestmess(adr, conn)
-	// fmt.Println()
-	// fmt.Println("hash ", hash)
+	hash := rootrequestmess(adr, conn)
+	fmt.Println()
+	fmt.Println("hash ", hash)
+	justhelloplease = false // on se met en lecture on a fini nos requete
 	// getDatumMess(adr, conn, hash)
 	// // getDatumMess(adr string, conn net.PacketConn, hash []byte)
 
