@@ -35,7 +35,7 @@ var myIP = 4
 var idMess = 0
 var a arbreMerkle
 var vide []byte
-var serverADDRESS string
+var serveur jsonPeer
 var name = "kitty"
 var conn net.PacketConn
 var messArbre [][]byte
@@ -100,7 +100,6 @@ func affichageNoeud(n *noeud) {
 			affichageNoeud(n.droit)
 		}
 	}
-
 }
 
 func goodhash(hash []byte) bool {
@@ -443,7 +442,7 @@ func rempMess(typMess int, length int, body []byte, id []byte) []byte {
 
 func nat(adr *net.UDPAddr) {
 	if debugN {
-		fmt.Println("ADRESS SERVER ", serverADDRESS)
+		fmt.Println("ADRESS SERVER ", serveur.Addresse[0])
 	}
 	fmt.Println("fonction nat")
 	// je suis A je veux me connecter a B
@@ -462,7 +461,7 @@ func nat(adr *net.UDPAddr) {
 	}
 	buf := make([]byte, 18)
 	for i := 0; i < 16; i++ {
-		fmt.Println(adr.IP[i+len(adr.IP)-16])
+		// fmt.Println(adr.IP[i+len(adr.IP)-16])
 		buf[i] = adr.IP[i+len(adr.IP)-16]
 	}
 
@@ -483,6 +482,7 @@ func nat(adr *net.UDPAddr) {
 		fmt.Println("mess bufE nat ", bufE)
 	}
 
+	serverADDRESS := fmt.Sprintf("[%s]:%d", serveur.Addresse[0].Host, serveur.Addresse[0].Port)
 	server, err := net.ResolveUDPAddr("udp", serverADDRESS)
 	if err != nil {
 		fmt.Println("Resolveudp NAT")
@@ -635,12 +635,11 @@ func hello(pair jsonPeer) {
 			} else if err != nil {
 				fmt.Printf("\n\nAttente\n")
 				tps = tps * 2
-				if tps > 64 {
+				if tps > 32 {
 					tps = 2
 				}
-			}
-			// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
-			if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+			} else if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+				// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
 				fmt.Printf("recu helloreply correct\n")
 				if debugH {
 					fmt.Println("le mess dans bufR ", bufR)
@@ -836,7 +835,7 @@ func session() {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7289)
+	port := fmt.Sprintf(":%d", 7279)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -848,6 +847,7 @@ func session() {
 		fmt.Printf("listen\n")
 		log.Fatal(err)
 	}
+	serveur.Name = "serveur"
 	// handshake avec le serveur
 	for i := 0; i < len(message); i++ {
 		fmt.Printf("\n\n")
@@ -855,7 +855,8 @@ func session() {
 			fmt.Printf("\n\ndebut boucle\n")
 		}
 		addrconn := fmt.Sprintf("[%s]:%d", message[i].Host, message[i].Port)
-		serverADDRESS = addrconn
+		adrs := jsonMessage{Host: message[i].Host, Port: message[i].Port}
+		serveur.Addresse = append(serveur.Addresse, adrs)
 		// envoie hello et dedans appel helloreply si recoit hello du retour sort quand a recu le helloreply
 		// du serveur plus envoyer hello reply au serveur
 		handshake(addrconn, conn)
@@ -1094,6 +1095,10 @@ func datumMess(adr net.Addr, bufR []byte) {
 func waitwaitmessages() {
 	// attendre un message
 	for {
+		// hello(serveur)
+		// fmt.Println("\n")
+		//fmt.Println("LA")
+		// if justhelloplease == false {
 		bufR := make([]byte, 256)
 		_, addr, err := conn.ReadFrom(bufR)
 		if err != nil {
@@ -1151,6 +1156,7 @@ func waitwaitmessages() {
 				break
 			}
 		}
+		// }
 		// time.Sleep(2 * time.Second)
 	}
 }
