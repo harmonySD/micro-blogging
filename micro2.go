@@ -36,7 +36,7 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serveur jsonPeer
-var name = "blue"
+var name = "chat"
 var conn net.PacketConn
 var messArbre [][]byte
 
@@ -109,7 +109,6 @@ func goodhash(hash []byte) bool {
 	} else {
 		return goodhashnoued(a.racine, hash)
 	}
-
 }
 
 func goodhashnoued(n *noeud, hash []byte) bool {
@@ -141,7 +140,6 @@ func rempNoeudArbre(gauche *noeud, droit *noeud) []byte {
 		buf[i+1] = hg[i]
 		buf[i+1+k] = hd[i]
 	}
-
 	return buf
 }
 
@@ -330,7 +328,6 @@ func afficheDatum(pair jsonPeer) {
 		// println(messArbre)
 		// println(hashArbre)
 	}
-
 }
 
 // body peut etre username si hello/helloreply
@@ -668,7 +665,7 @@ func hello(pair jsonPeer) {
 				rootmess(addr, bufR)
 				notHR = true
 			} else if bufR[4] == 129 {
-				fmt.Println("root dans hello")
+				fmt.Println("\n\nroot dans hello\n\n")
 				notHR = true
 			} else if bufR[4] == 2 {
 				fmt.Println("getdatum recu dans hello")
@@ -825,7 +822,7 @@ func session() {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7259)
+	port := fmt.Sprintf(":%d", 7254)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -1212,16 +1209,16 @@ func main() {
 	// // len, _ := binary.ReadVarint(buf)
 	// fmt.Println(length, lenghtbyte, len)
 
-	// initialisationArbre()
-	// affichageArbre()
+	initialisationArbre()
+	affichageArbre()
 
-	// ajoutMess("beurk", vide)
+	ajoutMess("beurk", vide)
 	// time.Sleep(1 * time.Second)
-	// ajoutMess("bip", vide)
-	// time.Sleep(1 * time.Second)
-	// ajoutMess("boop", vide)
-	// time.Sleep(1 * time.Second)
-	// affichageArbre()
+	ajoutMess("bip", vide)
+	time.Sleep(1 * time.Second)
+	ajoutMess("boop", vide)
+	time.Sleep(1 * time.Second)
+	affichageArbre()
 	// time.Sleep(1 * time.Second)
 
 	// h := sha256.Sum256(a.racine.value)
