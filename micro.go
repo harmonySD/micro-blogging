@@ -25,7 +25,7 @@ var debugH = false  // fonction hello et helloReply
 var debugA = false  // fonction arbre de Merkle
 var debugRQ = false // fonction root request
 var debugM = false  // fonction rempMess
-var debugD = false  // fonction datum etc
+var debugD = true   // fonction datum etc
 var debugN = false  // fonction nat etc
 var debugIP = false
 
@@ -232,6 +232,7 @@ func rempDatum(hash []byte) ([]byte, int) {
 	n += taille + length
 	if debugD {
 		fmt.Println("buf ", buf[:n])
+		fmt.Println("taille ", n)
 	}
 	n += len(nD.value)
 	bufF := make([]byte, n)
@@ -1090,15 +1091,16 @@ func noDatumMess(adr net.Addr, bufR []byte) {
 }
 
 func datumMess(adr net.Addr, bufR []byte) {
-	if debugRQ {
-		fmt.Println("datumMess please")
+	if debugD {
+		fmt.Println("\n\ndatumMess please")
 	}
 	// remplir un message avec type  130 avec le hash demander
 	hash := bufR[7:39]
 	body, n := rempDatum(hash)
 	bufE := rempMess(130, n, body, bufR)
-	if debugRQ {
-		fmt.Println("datum mess: le mess dasn bufE ", bufE)
+	if debugD {
+		fmt.Println("datum mess: le mess dans bufE ", bufE)
+		fmt.Println("datum taille: taille du mess ", n)
 	}
 	// envoie de bufE
 	address := adr.String()
@@ -1112,8 +1114,8 @@ func datumMess(adr net.Addr, bufR []byte) {
 		fmt.Println("write")
 		log.Fatal(err)
 	}
-	if debugRQ {
-		fmt.Println("datum envoyer")
+	if debugD {
+		fmt.Println("datum envoyer\n\n")
 	}
 }
 
@@ -1254,13 +1256,25 @@ func main() {
 	// affichageArbre()
 
 	// ajoutMess("beurk", vide)
-	// time.Sleep(1 * time.Second)
+	// // time.Sleep(1 * time.Second)
 	// ajoutMess("bip", vide)
 	// time.Sleep(1 * time.Second)
 	// ajoutMess("boop", vide)
 	// time.Sleep(1 * time.Second)
 	// affichageArbre()
-	// time.Sleep(1 * time.Second)
+	// // time.Sleep(1 * time.Second)
+
+	// var hash = []byte{28, 140, 168, 139, 108, 63, 198,
+	// 	110, 83, 143, 51, 165, 20, 127, 143, 49, 116,
+	// 	167, 177, 243, 121, 32, 54, 70, 251, 162, 88,
+	// 	211, 220, 122, 117, 250}
+
+	// body, n := rempDatum(hash)
+	// bufE := rempMess(130, n, body, vide)
+	// if debugRQ {
+	// 	fmt.Println("datum mess: le mess dans bufE ", bufE)
+	// 	fmt.Println("datum taille: taille du mess ", n)
+	// }
 
 	// h := sha256.Sum256(a.racine.value)
 	// ajoutMess("connection reussie", h[:])
@@ -1298,8 +1312,9 @@ func main() {
 	hash := rootrequestmess(pair)
 	fmt.Println("\nhash ", hash)
 	fmt.Println()
-	data := getDatumMess(pair, hash)
-	fmt.Println("\ndata ", data[:40])
+	afficheDatum(pair)
+	// data := getDatumMess(pair, hash)
+	// fmt.Println("\ndata ", data[:40])
 
 	justhelloplease = false // on se met en lecture on a fini nos requete
 	fmt.Println("*********************************************************************************************")

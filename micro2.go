@@ -24,7 +24,7 @@ var debugH = false  // fonction hello et helloReply
 var debugA = false  // fonction arbre de Merkle
 var debugRQ = false // fonction root request
 var debugM = false  // fonction rempMess
-var debugD = false  // fonction datum etc
+var debugD = true   // fonction datum etc
 var debugN = false  // fonction nat etc
 var debugIP = false
 
@@ -220,6 +220,9 @@ func rempDatum(hash []byte) ([]byte, int) {
 		copy(buf[n:(n+taille+length)], nD.droit.value)
 		n += taille + length
 		nD = nD.gauche
+		if debugD {
+			fmt.Println("tailleFor ", n)
+		}
 	}
 
 	length := int(binary.BigEndian.Uint16(nD.value[taille-2 : taille]))
@@ -228,11 +231,16 @@ func rempDatum(hash []byte) ([]byte, int) {
 	n += taille + length
 	if debugD {
 		fmt.Println("buf ", buf[:n])
+		fmt.Println("taille ", n)
 	}
 	n = len(nD.value)
 	bufF := make([]byte, n)
 	copy(bufF[:32], hash)
 	copy(bufF[32:], nD.value)
+	if debugD {
+		fmt.Println("buf ", buf[:n])
+		fmt.Println("taille ", n)
+	}
 	return bufF, n
 }
 
@@ -1052,15 +1060,16 @@ func noDatumMess(adr net.Addr, bufR []byte) {
 
 // envoie de toutes les reponses precedent le hash demande
 func datumMess(adr net.Addr, bufR []byte) {
-	if debugRQ {
-		fmt.Println("datumMess please")
+	if debugD {
+		fmt.Println("\n\ndatumMess please")
 	}
 	// remplir un message avec type  130 avec le hash demander
 	hash := bufR[7:39]
 	body, n := rempDatum(hash)
 	bufE := rempMess(130, n, body, bufR)
-	if debugRQ {
-		fmt.Println("datum mess: le mess dasn bufE ", bufE)
+	if debugD {
+		fmt.Println("datum mess: le mess dans bufE ", bufE)
+		fmt.Println("datum taille: taille de n ", n)
 	}
 	// envoie de bufE
 	address := adr.String()
@@ -1074,7 +1083,7 @@ func datumMess(adr net.Addr, bufR []byte) {
 		fmt.Println("write")
 		log.Fatal(err)
 	}
-	fmt.Println("datum envoyer")
+	fmt.Println("datum envoyer\n\n")
 }
 
 // attente infini de message
@@ -1215,10 +1224,10 @@ func main() {
 
 	ajoutMess("beurk", vide)
 	// time.Sleep(1 * time.Second)
-	ajoutMess("bip", vide)
-	time.Sleep(1 * time.Second)
-	ajoutMess("boop", vide)
-	time.Sleep(1 * time.Second)
+	// ajoutMess("bip", vide)
+	// time.Sleep(1 * time.Second)
+	// ajoutMess("boop", vide)
+	// time.Sleep(1 * time.Second)
 	affichageArbre()
 	// time.Sleep(1 * time.Second)
 
