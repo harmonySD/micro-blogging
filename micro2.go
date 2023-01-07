@@ -1,4 +1,4 @@
-// package main
+package main
 
 import (
 	"bytes"
@@ -19,14 +19,14 @@ import (
 var wg sync.WaitGroup
 var justhelloplease = false //si false alors on fera tout les cas dans waitwait
 var myIP = 4
-var debug = false  // fonction session
-var debugP = false // fonction recherche de pair
-var debugH = false // fonction hello et helloReply
-var debugA = false // fonction arbre de Merkle
-var debugRQ = true // fonction root request
-var debugM = true  // fonction rempMess
-var debugD = false // fonction datum etc
-var debugN = true  // fonction nat etc
+var debug = false   // fonction session
+var debugP = false  // fonction recherche de pair
+var debugH = false  // fonction hello et helloReply
+var debugA = false  // fonction arbre de Merkle
+var debugRQ = false // fonction root request
+var debugM = false  // fonction rempMess
+var debugD = false  // fonction datum etc
+var debugN = false  // fonction nat etc
 
 var idMess = 0
 var a arbreMerkle
@@ -1225,7 +1225,7 @@ func main() {
 	conn := session()
 	wg.Add(1)
 	go waitwaitmessages(conn)
-	// fmt.Println("*********************************************************************************************")
+	fmt.Println("*********************************************************************************************")
 	// liste := chercherPairs()
 	// fmt.Printf("liste : %s\n", liste)
 	// var adr string
