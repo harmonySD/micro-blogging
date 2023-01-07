@@ -36,7 +36,7 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serveur jsonPeer
-var name = "chat"
+var name = "Blue"
 var conn net.PacketConn
 var messArbre [][]byte
 
@@ -822,7 +822,7 @@ func session() {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7254)
+	port := fmt.Sprintf(":%d", 7954)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -1079,6 +1079,7 @@ func datumMess(adr net.Addr, bufR []byte) {
 
 // attente infini de message
 func waitwaitmessages() {
+	defer wg.Done()
 	// attendre un message
 	for {
 		hello(serveur)
