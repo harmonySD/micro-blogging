@@ -37,7 +37,7 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serveur jsonPeer
-var name = "oignon"
+var name = "truc"
 var conn net.PacketConn
 var messArbre [][]byte
 
@@ -614,7 +614,6 @@ func hello(pair jsonPeer, nonsol bool) {
 					// preparation message bufE ENVOYE HELLO
 					if notHR == false {
 						userbyte := []byte(name)
-						fmt.Println("la")
 						bufE = rempMess(0, 0, userbyte, vide, nonsol)
 						if debugH {
 							fmt.Println("le mess dans bufE ", bufE)
@@ -627,7 +626,6 @@ func hello(pair jsonPeer, nonsol bool) {
 						}
 						fmt.Printf("hello envoye !\n")
 						if nonsol == true {
-							fmt.Println("bip")
 							break
 						}
 					}
@@ -864,7 +862,7 @@ func session() {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7886)
+	port := fmt.Sprintf(":%d", 7799)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -903,7 +901,13 @@ func rootrequestmess(pair jsonPeer) []byte {
 		fmt.Println("rootrequest please")
 	}
 	var rep []byte
-	for i := 0; i < len(pair.Addresse); i++ {
+	fmt.Println("len addres ", len(pair.Addresse))
+	nbAdd := len(pair.Addresse)
+	indxdep := 0
+	if nbAdd >= 3 {
+		indxdep = nbAdd - 2
+	}
+	for i := indxdep; i < len(pair.Addresse); i++ {
 		if strings.Contains(pair.Addresse[i].Host, ":") {
 			addrconn := fmt.Sprintf("[%s]:%d", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
@@ -919,18 +923,22 @@ func rootrequestmess(pair jsonPeer) []byte {
 			}
 			tps := 2
 			brk1 := 0
+			notRQ := false
+			var bufE []byte
 			for brk1 != 1 {
-				bufE := rempMess(1, 0, vide, vide, false)
-				if debugRQ {
-					fmt.Println("root request mess : dans bufE ", bufE)
-				}
-				_, err = conn.WriteTo(bufE, adr2)
-				if err != nil {
-					fmt.Println("write")
-					log.Fatal(err)
-				}
-				if debugRQ {
-					fmt.Println("demande root request envoyer! ", tps)
+				if notRQ == false {
+					bufE = rempMess(1, 0, vide, vide, false)
+					if debugRQ {
+						fmt.Println("root request mess : dans bufE ", bufE)
+					}
+					_, err = conn.WriteTo(bufE, adr2)
+					if err != nil {
+						fmt.Println("write")
+						log.Fatal(err)
+					}
+					if debugRQ {
+						fmt.Println("demande root request envoyer! ", tps)
+					}
 				}
 
 				// prepare bufrecevoir pour ecrire le message recu dedans
@@ -949,19 +957,30 @@ func rootrequestmess(pair jsonPeer) []byte {
 					if debugRQ {
 						fmt.Println("le mess dans bufR ", bufR)
 					}
+					brk1 = 1
 					rep = bufR[7:39]
-					brk1 += 1
 					tps = 2
 				} else if bufR[4] == 254 {
 					if debugRQ {
 						fmt.Println("message erreur")
 						fmt.Println(string(bufR[7:]))
 					}
+					notRQ = true
+				} else if bufR[4] == 128 {
+					if debugRQ {
+						fmt.Println("reply du 2sec")
+					}
+					notRQ = true
 				} else {
 					fmt.Println("else !!!!!!!")
+					fmt.Println("bufR, bfE", bufR[0:4], bufE[0:4])
 					fmt.Println("le mess dans bufR ", bufR)
+					notRQ = true
 				}
 				fmt.Println("\n\n")
+				if brk1 == 1 {
+					break
+				}
 			}
 		}
 	}
@@ -1134,14 +1153,12 @@ func waitwaitmessages() {
 	// attendre un message
 	for {
 		if justhelloplease == true {
-			fmt.Println("oui")
 			hello(serveur, true)
 		} else {
 			hello(serveur, false)
 		}
 
 		fmt.Println("\n")
-		// fmt.Println("LA")
 		if justhelloplease == false {
 			bufR := make([]byte, 256)
 			_, addr, err := conn.ReadFrom(bufR)

@@ -19,15 +19,15 @@ import (
 )
 
 // varaible debugage
-var debug = true   // fonction session
-var debugP = true  // fonction recherche de pair
-var debugH = true  // fonction hello et helloReply
-var debugA = true  // fonction arbre de Merkle
-var debugRQ = true // fonction root request
-var debugM = true  // fonction rempMess
-var debugD = true  // fonction datum etc
-var debugN = true  // fonction nat etc
-var debugIP = true
+var debug = false   // fonction session
+var debugP = false  // fonction recherche de pair
+var debugH = false  // fonction hello et helloReply
+var debugA = false  // fonction arbre de Merkle
+var debugRQ = false // fonction root request
+var debugM = false  // fonction rempMess
+var debugD = false  // fonction datum etc
+var debugN = false  // fonction nat etc
+var debugIP = false
 
 // variable globale
 var wg sync.WaitGroup
@@ -388,6 +388,7 @@ func rempMess(typMess int, length int, body []byte, id []byte, nonsol bool) []by
 		}
 		i += length
 	} else if typMess == 128 || typMess == 0 { //cas helloreply
+		fmt.Println(typMess)
 		fmt.Println("remp mess hello")
 		// Flags et flags contd
 		for k := 0; k < 4; k++ {
@@ -587,7 +588,12 @@ func hello(pair jsonPeer, nonsol bool) {
 	if debugH {
 		fmt.Printf("hello\n")
 	}
-	for i := 0; i < len(pair.Addresse); i++ {
+	nbAdd := len(pair.Addresse)
+	indxdep := 0
+	if nbAdd >= 3 {
+		indxdep = nbAdd - 2
+	}
+	for i := indxdep; i < len(pair.Addresse); i++ {
 		if strings.Contains(pair.Addresse[i].Host, ":") {
 			addrconn := fmt.Sprintf("[%s]:%d", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
@@ -614,7 +620,6 @@ func hello(pair jsonPeer, nonsol bool) {
 					// preparation message bufE ENVOYE HELLO
 					if notHR == false {
 						userbyte := []byte(name)
-						fmt.Println("la")
 						bufE = rempMess(0, 0, userbyte, vide, nonsol)
 						if debugH {
 							fmt.Println("le mess dans bufE ", bufE)
@@ -627,7 +632,6 @@ func hello(pair jsonPeer, nonsol bool) {
 						}
 						fmt.Printf("hello envoye !\n")
 						if nonsol == true {
-							fmt.Println("bip")
 							break
 						}
 					}
@@ -709,9 +713,10 @@ func hello(pair jsonPeer, nonsol bool) {
 						}
 						notHR = true
 					} else {
-						fmt.Printf("Erreur LA PTN\n")
-						fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
-						fmt.Println((bufR[:20]))
+						// fmt.Printf("Erreur LA PTN\n")
+						// fmt.Println("addr", addr)
+						// fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
+						// fmt.Println((bufR[:20]))
 						//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
 						notHR = true
 					}
@@ -904,7 +909,12 @@ func rootrequestmess(pair jsonPeer) []byte {
 	}
 	var rep []byte
 	fmt.Println("len addres ", len(pair.Addresse))
-	for i := 0; i < len(pair.Addresse); i++ {
+	nbAdd := len(pair.Addresse)
+	indxdep := 0
+	if nbAdd >= 3 {
+		indxdep = nbAdd - 2
+	}
+	for i := indxdep; i < len(pair.Addresse); i++ {
 		if strings.Contains(pair.Addresse[i].Host, ":") {
 			addrconn := fmt.Sprintf("[%s]:%d", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
@@ -923,8 +933,9 @@ func rootrequestmess(pair jsonPeer) []byte {
 			notRQ := false
 			var bufE []byte
 			for brk1 != 1 {
-				fmt.Println("ouin ouon boucle brk", brk1)
+				fmt.Println("boucleeee")
 				if notRQ == false {
+					fmt.Println("ce rempmess")
 					bufE = rempMess(1, 0, vide, vide, false)
 					if debugRQ {
 						fmt.Println("root request mess : dans bufE ", bufE)
@@ -956,7 +967,6 @@ func rootrequestmess(pair jsonPeer) []byte {
 						fmt.Println("le mess dans bufR ", bufR)
 					}
 					brk1 = 1
-					fmt.Println("je suis LAAAAA")
 					rep = bufR[7:39]
 					tps = 2
 				} else if bufR[4] == 254 {
@@ -964,11 +974,11 @@ func rootrequestmess(pair jsonPeer) []byte {
 						fmt.Println("message erreur")
 						fmt.Println(string(bufR[7:]))
 					}
-
-					fmt.Println("message erreur")
 					notRQ = true
 				} else if bufR[4] == 128 {
-					fmt.Println("reply du 2sec")
+					if debugRQ {
+						fmt.Println("reply du 2sec")
+					}
 					notRQ = true
 				} else {
 					fmt.Println("else !!!!!!!")
@@ -978,13 +988,12 @@ func rootrequestmess(pair jsonPeer) []byte {
 				}
 				fmt.Println("\n\n")
 				if brk1 == 1 {
-					fmt.Println("brk de merde")
 					break
 				}
 			}
 		}
 	}
-	fmt.Println("JE SUIS SORTIE")
+	fmt.Println("je susi sortiiiiie")
 	return rep
 }
 
@@ -1017,7 +1026,12 @@ func getDatumMess(pair jsonPeer, hash []byte) []byte {
 		fmt.Println("getdatum please")
 	}
 	bufR := make([]byte, 1096)
-	for i := 0; i < len(pair.Addresse); i++ {
+	nbAdd := len(pair.Addresse)
+	indxdep := 0
+	if nbAdd >= 3 {
+		indxdep = nbAdd - 2
+	}
+	for i := indxdep; i < len(pair.Addresse)-1; i++ {
 		if strings.Contains(pair.Addresse[i].Host, ":") {
 			addrconn := fmt.Sprintf("[%s]:%d", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
@@ -1154,14 +1168,12 @@ func waitwaitmessages() {
 	// attendre un message
 	for {
 		if justhelloplease == true {
-			fmt.Println("oui")
 			hello(serveur, true)
 		} else {
 			hello(serveur, false)
 		}
 
 		fmt.Println("\n")
-		// fmt.Println("LA")
 		if justhelloplease == false {
 			bufR := make([]byte, 256)
 			_, addr, err := conn.ReadFrom(bufR)
@@ -1320,7 +1332,7 @@ func main() {
 	fmt.Printf("liste : %s\n", liste)
 	var pair jsonPeer
 	if liste != "" {
-		pair = chercherPair("oignon")
+		pair = chercherPair("truc")
 		fmt.Printf("name : %s \n", pair.Name)
 		i := 0
 		for i = 0; i < len(pair.Addresse); i++ {
@@ -1331,12 +1343,12 @@ func main() {
 	fmt.Println("*********************************************************************************************")
 
 	hello(pair, true)
-	fmt.Println()
+	fmt.Println("hello ok ")
 	hash := rootrequestmess(pair)
 	fmt.Println("\nhash ", hash)
-	// fmt.Println()
-	// data := getDatumMess(pair, hash)
-	// fmt.Println("\ndata ", data[:40])
+	fmt.Println()
+	data := getDatumMess(pair, hash)
+	fmt.Println("\ndata ", data[:40])
 
 	justhelloplease = false // on se met en lecture on a fini nos requete
 	fmt.Println("*********************************************************************************************")
