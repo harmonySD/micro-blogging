@@ -862,7 +862,7 @@ func session() {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7799)
+	port := fmt.Sprintf(":%d", 7779)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
