@@ -19,15 +19,15 @@ import (
 )
 
 // varaible debugage
-var debug = false   // fonction session
-var debugP = false  // fonction recherche de pair
-var debugH = false  // fonction hello et helloReply
-var debugA = false  // fonction arbre de Merkle
-var debugRQ = false // fonction root request
-var debugM = false  // fonction rempMess
-var debugD = false  // fonction datum etc
-var debugN = false  // fonction nat etc
-var debugIP = false
+var debug = true   // fonction session
+var debugP = true  // fonction recherche de pair
+var debugH = true  // fonction hello et helloReply
+var debugA = true  // fonction arbre de Merkle
+var debugRQ = true // fonction root request
+var debugM = true  // fonction rempMess
+var debugD = true  // fonction datum etc
+var debugN = true  // fonction nat etc
+var debugIP = true
 
 // variable globale
 var wg sync.WaitGroup
@@ -37,7 +37,7 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serveur jsonPeer
-var name = "Blue"
+var name = "oignon"
 var conn net.PacketConn
 var messArbre [][]byte
 
@@ -864,7 +864,7 @@ func session() {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 7989)
+	port := fmt.Sprintf(":%d", 7886)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}

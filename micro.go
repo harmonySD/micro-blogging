@@ -19,15 +19,15 @@ import (
 )
 
 // varaible debugage
-var debug = false   // fonction session
-var debugP = false  // fonction recherche de pair
-var debugH = false  // fonction hello et helloReply
-var debugA = false  // fonction arbre de Merkle
-var debugRQ = false // fonction root request
-var debugM = false  // fonction rempMess
-var debugD = false  // fonction datum etc
-var debugN = false  // fonction nat etc
-var debugIP = false
+var debug = true   // fonction session
+var debugP = true  // fonction recherche de pair
+var debugH = true  // fonction hello et helloReply
+var debugA = true  // fonction arbre de Merkle
+var debugRQ = true // fonction root request
+var debugM = true  // fonction rempMess
+var debugD = true  // fonction datum etc
+var debugN = true  // fonction nat etc
+var debugIP = true
 
 // variable globale
 var wg sync.WaitGroup
@@ -37,7 +37,7 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serveur jsonPeer
-var name = "Kitty"
+var name = "poireau"
 var conn net.PacketConn
 var messArbre [][]byte
 
@@ -864,7 +864,7 @@ func session() {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 8289)
+	port := fmt.Sprintf(":%d", 8921)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
@@ -903,6 +903,7 @@ func rootrequestmess(pair jsonPeer) []byte {
 		fmt.Println("rootrequest please")
 	}
 	var rep []byte
+	fmt.Println("len addres ", len(pair.Addresse))
 	for i := 0; i < len(pair.Addresse); i++ {
 		if strings.Contains(pair.Addresse[i].Host, ":") {
 			addrconn := fmt.Sprintf("[%s]:%d", pair.Addresse[i].Host, pair.Addresse[i].Port)
@@ -919,18 +920,23 @@ func rootrequestmess(pair jsonPeer) []byte {
 			}
 			tps := 2
 			brk1 := 0
+			notRQ := false
+			var bufE []byte
 			for brk1 != 1 {
-				bufE := rempMess(1, 0, vide, vide, false)
-				if debugRQ {
-					fmt.Println("root request mess : dans bufE ", bufE)
-				}
-				_, err = conn.WriteTo(bufE, adr2)
-				if err != nil {
-					fmt.Println("write")
-					log.Fatal(err)
-				}
-				if debugRQ {
-					fmt.Println("demande root request envoyer! ", tps)
+				fmt.Println("ouin ouon boucle brk", brk1)
+				if notRQ == false {
+					bufE = rempMess(1, 0, vide, vide, false)
+					if debugRQ {
+						fmt.Println("root request mess : dans bufE ", bufE)
+					}
+					_, err = conn.WriteTo(bufE, adr2)
+					if err != nil {
+						fmt.Println("write")
+						log.Fatal(err)
+					}
+					if debugRQ {
+						fmt.Println("demande root request envoyer! ", tps)
+					}
 				}
 
 				// prepare bufrecevoir pour ecrire le message recu dedans
@@ -949,22 +955,36 @@ func rootrequestmess(pair jsonPeer) []byte {
 					if debugRQ {
 						fmt.Println("le mess dans bufR ", bufR)
 					}
+					brk1 = 1
+					fmt.Println("je suis LAAAAA")
 					rep = bufR[7:39]
-					brk1 += 1
 					tps = 2
 				} else if bufR[4] == 254 {
 					if debugRQ {
 						fmt.Println("message erreur")
 						fmt.Println(string(bufR[7:]))
 					}
+
+					fmt.Println("message erreur")
+					notRQ = true
+				} else if bufR[4] == 128 {
+					fmt.Println("reply du 2sec")
+					notRQ = true
 				} else {
 					fmt.Println("else !!!!!!!")
+					fmt.Println("bufR, bfE", bufR[0:4], bufE[0:4])
 					fmt.Println("le mess dans bufR ", bufR)
+					notRQ = true
 				}
 				fmt.Println("\n\n")
+				if brk1 == 1 {
+					fmt.Println("brk de merde")
+					break
+				}
 			}
 		}
 	}
+	fmt.Println("JE SUIS SORTIE")
 	return rep
 }
 
@@ -1300,7 +1320,7 @@ func main() {
 	fmt.Printf("liste : %s\n", liste)
 	var pair jsonPeer
 	if liste != "" {
-		pair = chercherPair("Blue")
+		pair = chercherPair("oignon")
 		fmt.Printf("name : %s \n", pair.Name)
 		i := 0
 		for i = 0; i < len(pair.Addresse); i++ {
@@ -1311,9 +1331,9 @@ func main() {
 	fmt.Println("*********************************************************************************************")
 
 	hello(pair, true)
-	// fmt.Println()
-	// hash := rootrequestmess(pair)
-	// fmt.Println("\nhash ", hash)
+	fmt.Println()
+	hash := rootrequestmess(pair)
+	fmt.Println("\nhash ", hash)
 	// fmt.Println()
 	// data := getDatumMess(pair, hash)
 	// fmt.Println("\ndata ", data[:40])
