@@ -18,16 +18,16 @@ import (
 	// "math/rand"
 )
 
-// varaible debugage
-var debug = true   // fonction session
-var debugP = true  // fonction recherche de pair
-var debugH = true  // fonction hello et helloReply
-var debugA = true  // fonction arbre de Merkle
-var debugRQ = true // fonction root request
-var debugM = true  // fonction rempMess
-var debugD = true  // fonction datum etc
-var debugN = true  // fonction nat etc
-var debugIP = true
+// variable debugage
+var debug = false   // fonction session
+var debugP = false  // fonction recherche de pair
+var debugH = false  // fonction hello et helloReply
+var debugA = false  // fonction arbre de Merkle
+var debugRQ = false // fonction root request
+var debugM = false  // fonction rempMess
+var debugD = false  // fonction datum etc
+var debugN = false  // fonction nat etc
+var debugIP = false
 
 // variable globale
 var wg sync.WaitGroup
@@ -37,7 +37,7 @@ var idMess = 0
 var a arbreMerkle
 var vide []byte
 var serveur jsonPeer
-var name = "truc"
+var name = "Blue"
 var conn net.PacketConn
 var messArbre [][]byte
 
@@ -119,13 +119,25 @@ func goodhashnoued(n *noeud, hash []byte) bool {
 		fmt.Printf("Vide\n")
 		return false
 	} else {
-		if n.droit.value[0] == 0 {
-			if bytes.Compare(n.value, hash) == 0 {
-				return true
+		if debugD {
+			fmt.Println("\nvalue ", n.value, hash)
+		}
+		if n.value[0] == 0 {
+			return false
+		} else if n.value[0] == 1 {
+			hg := n.value[1 : 32+1]
+			hd := n.value[1+32:]
+			if debugD {
+				fmt.Println("hg ", hg)
+				fmt.Println("hd ", hd)
 			}
-		} else {
-			goodhashnoued(n.gauche, hash)
-			goodhashnoued(n.droit, hash)
+			if bytes.Equal(hg[:], hash) || bytes.Equal(hd[:], hash) {
+				return true
+			} else {
+				bd := goodhashnoued(n.droit, hash) // pas vraiment necessaire
+				bg := goodhashnoued(n.gauche, hash)
+				return bd || bg
+			}
 		}
 	}
 	return false
@@ -196,7 +208,6 @@ func rempMessArbre(mess string, rep []byte) []byte {
 }
 
 func rempDatum(hash []byte) ([]byte, int) {
-	buf := make([]byte, 1096)
 	n := 0
 	var nD *noeud
 	h := sha256.Sum256(a.racine.value)
@@ -218,28 +229,22 @@ func rempDatum(hash []byte) ([]byte, int) {
 		}
 	}
 
-	taille := 1 + 4 + 32 + 2
-	for nD.value[0] != 0 {
-		length := int(binary.BigEndian.Uint16(nD.droit.value[taille-2 : taille]))
-		copy(buf[n:(n+taille+length)], nD.droit.value)
-		n += taille + length
-		nD = nD.gauche
-	}
+	// for nD.value[0] != 0 {
+	// 	length := int(binary.BigEndian.Uint16(nD.droit.value[taille-2 : taille]))
+	// 	copy(buf[n:(n+taille+length)], nD.droit.value)
+	// 	n += taille + length
+	// 	nD = nD.gauche
+	// }
 
-	length := int(binary.BigEndian.Uint16(nD.value[taille-2 : taille]))
-
-	copy(buf[n:(n+taille+length)], nD.value)
-	n += taille + length
-	if debugD {
-		fmt.Println("buf ", buf[:n])
-	}
-	n += len(nD.value)
+	n = 32 + len(nD.value)
 	bufF := make([]byte, n)
 	copy(bufF[:32], hash)
 	copy(bufF[32:], nD.value)
+	if debugD {
+		fmt.Println("bufFilnal ", bufF)
+	}
 	return bufF, n
 }
-
 func notInArbre(hash []byte, arbre [][]byte) bool {
 	if len(arbre) == 0 {
 		return true
@@ -700,7 +705,6 @@ func hello(pair jsonPeer, nonsol bool) {
 						//verif qu'on a le hash
 						hashrecu := bufR[7:39]
 						if goodhash(hashrecu) == true {
-							//datummess
 							datumMess(addr, bufR)
 						} else {
 							noDatumMess(addr, bufR)
@@ -1150,6 +1154,7 @@ func datumMess(adr net.Addr, bufR []byte) {
 // attente infini de message
 func waitwaitmessages() {
 	defer wg.Done()
+	lettre := 'a'
 	// attendre un message
 	for {
 		if justhelloplease == true {
@@ -1220,6 +1225,8 @@ func waitwaitmessages() {
 			}
 		}
 		time.Sleep(2 * time.Second)
+		ajoutMess(string(lettre), vide)
+		lettre += 1
 	}
 }
 
@@ -1288,9 +1295,9 @@ func main() {
 	affichageArbre()
 
 	ajoutMess("beurk", vide)
-	// time.Sleep(1 * time.Second)
-	ajoutMess("bip", vide)
 	time.Sleep(1 * time.Second)
+	ajoutMess("bip", vide)
+	// time.Sleep(1 * time.Second)
 	ajoutMess("boop", vide)
 	time.Sleep(1 * time.Second)
 	affichageArbre()
