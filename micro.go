@@ -119,13 +119,25 @@ func goodhashnoued(n *noeud, hash []byte) bool {
 		fmt.Printf("Vide\n")
 		return false
 	} else {
-		if n.droit.value[0] == 0 {
-			if bytes.Compare(n.value, hash) == 0 {
-				return true
+		if debugD {
+			fmt.Println("\nvalue ", n.value, hash)
+		}
+		if n.value[0] == 0 {
+			return false
+		} else if n.value[0] == 1 {
+			hg := n.value[1 : 32+1]
+			hd := n.value[1+32:]
+			if debugD {
+				fmt.Println("hg ", hg)
+				fmt.Println("hd ", hd)
 			}
-		} else {
-			goodhashnoued(n.gauche, hash)
-			goodhashnoued(n.droit, hash)
+			if bytes.Equal(hg[:], hash) || bytes.Equal(hd[:], hash) {
+				return true
+			} else {
+				bd := goodhashnoued(n.droit, hash) // pas vraiment necessaire
+				bg := goodhashnoued(n.gauche, hash)
+				return bd || bg
+			}
 		}
 	}
 	return false
@@ -196,7 +208,6 @@ func rempMessArbre(mess string, rep []byte) []byte {
 }
 
 func rempDatum(hash []byte) ([]byte, int) {
-	buf := make([]byte, 1096)
 	n := 0
 	var nD *noeud
 	h := sha256.Sum256(a.racine.value)
@@ -218,25 +229,13 @@ func rempDatum(hash []byte) ([]byte, int) {
 		}
 	}
 
-	taille := 1 + 4 + 32 + 2
-	for nD.value[0] != 0 {
-		length := int(binary.BigEndian.Uint16(nD.droit.value[taille-2 : taille]))
-		copy(buf[n:(n+taille+length)], nD.droit.value)
-		n += taille + length
-		nD = nD.gauche
-	}
-
-	length := int(binary.BigEndian.Uint16(nD.value[taille-2 : taille]))
-
-	copy(buf[n:(n+taille+length)], nD.value)
-	n += taille + length
-	if debugD {
-		fmt.Println("buf ", buf[:n])
-	}
-	n += len(nD.value)
+	n = 32 + len(nD.value)
 	bufF := make([]byte, n)
 	copy(bufF[:32], hash)
 	copy(bufF[32:], nD.value)
+	if debugD {
+		fmt.Println("bufFilnal ", bufF)
+	}
 	return bufF, n
 }
 
@@ -252,87 +251,82 @@ func notInArbre(hash []byte, arbre [][]byte) bool {
 	return true
 }
 
+// demande via getDatum, de tous les messages de pair
 func afficheDatum(pair jsonPeer) {
 	hash := rootrequestmess(pair)
 	var hashArbre [][]byte
 	if notInArbre(hash, messArbre) {
-		fmt.Println("len hash1 ", len(hashArbre))
 		messArbre = append(messArbre, hash)
 		hashArbre = append(hashArbre, hash)
-		fmt.Println("len hash2 ", len(hashArbre))
 	}
 
 	for len(hashArbre) > 0 {
 		hash = hashArbre[0]
-		// mois[:indexASupprimer], mois[(indexASupprimer+1):]...
 		hashArbre = append(hashArbre[:0], hashArbre[1:]...)
 		bufR := getDatumMess(pair, hash[:])
 
-		lenghtbyte := bufR[5:7]
-		buf := bytes.NewReader(lenghtbyte)
-		var n uint16
-		binary.Read(buf, binary.BigEndian, &n)
+		// pas une reponse Nodatum
+		if bufR != nil {
+			lenghtbyte := bufR[5:7]
+			buf := bytes.NewReader(lenghtbyte)
+			var n uint16
+			binary.Read(buf, binary.BigEndian, &n)
 
-		if debugD {
-			fmt.Println("mess ", bufR)
-			fmt.Println("hash ", messArbre[0])
-			fmt.Println("len hash ", len(hashArbre))
-			fmt.Println("\n\ntaille ", lenghtbyte)
-			fmt.Println("taille ", int(n))
-			fmt.Println("taillemess ", len(bufR))
-			fmt.Println("message datum", bufR)
-		}
-
-		deb := 4 + 1 + 2 + 32
-		if bufR[deb] == 0 {
-			deb += 1
-			janvier := time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)
-			dateB := bufR[deb:(deb + 4)]
-			buf = bytes.NewReader(dateB)
-			var dateS uint32
-			binary.Read(buf, binary.BigEndian, &dateS)
-			date := janvier.Add(time.Duration(dateS) * time.Second)
-			// fmt.Println("date\n")
-			deb += 4
-			hash := bufR[deb:(deb + 32)]
-			// fmt.Println("hash\n")
-			deb += 32
-			lengthB := bufR[deb:(deb + 2)]
-			buf := bytes.NewReader(lengthB)
-			var length int
-			binary.Read(buf, binary.BigEndian, &length)
-			// fmt.Println("length\n", length)
-			deb += 2
-			mess := string(bufR[deb:(deb + length)])
-			// fmt.Println("mess\n")
-			deb += length
-			if hash[0] == 0 {
-				fmt.Printf("message datant du %v, %v\n\n", date, mess)
-			} else {
-				fmt.Printf("message datant du %v, repondant a %v, %v\n\n", date, hash, mess)
-			}
 			if debugD {
-				fmt.Println("ou ", n, deb)
+				fmt.Println("hash ", hash)
+				fmt.Println("len hash ", len(hashArbre))
+				fmt.Println("\ntaille ", lenghtbyte)
+				fmt.Println("taille ", int(n))
+				fmt.Println("taillemess ", len(bufR))
+				fmt.Println("message datum", bufR)
 			}
-		} else {
-			max := int(n) + deb
-			deb += 1
-			// fmt.Println("max ", max)
-			for max > deb {
-				// fmt.Println("deb ", deb)
-				fmt.Println("\nhash noeud ", bufR[deb:deb+32])
-				if notInArbre(bufR[deb:deb+32], messArbre) {
-					messArbre = append(messArbre, bufR[deb:deb+32])
-					hashArbre = append(hashArbre, bufR[deb:deb+32])
-				}
-				deb += 32
-			}
-			// fmt.Println("len hash ", len(hashArbre))
-		}
-		// println(messArbre)
-		// println(hashArbre)
-	}
 
+			deb := 4 + 1 + 2 + 32
+			if bufR[deb] == 0 {
+				deb += 1
+				janvier := time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)
+				dateB := bufR[deb:(deb + 4)]
+				buf = bytes.NewReader(dateB)
+				var dateS uint32
+				binary.Read(buf, binary.BigEndian, &dateS)
+				date := janvier.Add(time.Duration(dateS) * time.Second)
+				deb += 4
+				hash := bufR[deb:(deb + 32)]
+				deb += 32
+				lengthB := bufR[deb:(deb + 2)]
+				buf := bytes.NewReader(lengthB)
+				var length uint16
+				binary.Read(buf, binary.BigEndian, &length)
+				deb += 2
+				mess := string(bufR[deb:(deb + int(length))])
+				if debugD {
+					fmt.Println("date ", date)
+					fmt.Println("hash ", hash)
+					fmt.Println("length ", length, lengthB)
+					fmt.Println("mess ", mess)
+				}
+				deb += int(length)
+				if hash[0] == 0 {
+					fmt.Printf("message datant du %v, %v\n\n", date, mess)
+				} else {
+					fmt.Printf("message datant du %v, repondant a %v, %v\n\n", date, hash, mess)
+				}
+			} else {
+				max := int(n) + deb - 32
+				deb += 1
+				for max > deb {
+					if debugD {
+						fmt.Println("\nhash noeud ", bufR[deb:deb+32])
+					}
+					if notInArbre(bufR[deb:deb+32], messArbre) {
+						messArbre = append(messArbre, bufR[deb:deb+32])
+						hashArbre = append(hashArbre, bufR[deb:deb+32])
+					}
+					deb += 32
+				}
+			}
+		}
+	}
 }
 
 // body peut etre username si hello/helloreply
@@ -1283,7 +1277,7 @@ func main() {
 	fmt.Printf("liste : %s\n", liste)
 	var pair jsonPeer
 	if liste != "" {
-		pair = chercherPair("Blue")
+		pair = chercherPair("jch")
 		fmt.Printf("name : %s \n", pair.Name)
 		i := 0
 		for i = 0; i < len(pair.Addresse); i++ {
@@ -1300,6 +1294,11 @@ func main() {
 	fmt.Println()
 	data := getDatumMess(pair, hash)
 	fmt.Println("\ndata ", data[:40])
+	fmt.Println("************************\n\n")
+	afficheDatum(pair)
+	time.Sleep(3 * time.Second)
+	fmt.Println("\n************************")
+	afficheDatum(pair)
 
 	justhelloplease = false // on se met en lecture on a fini nos requete
 	fmt.Println("*********************************************************************************************")
