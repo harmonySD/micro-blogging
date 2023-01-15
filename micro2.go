@@ -1291,16 +1291,6 @@ func main() {
 		}
 		myIP = 6
 	}
-	// length := 257
-	// lenghtbyte := make([]byte, 2)
-	// binary.BigEndian.PutUint16(lenghtbyte, uint16(length))
-	// nowBuffer := bytes.NewReader(lenghtbyte)
-	// var len uint16
-	// binary.Read(nowBuffer,binary.BigEndian,&len)
-
-	// // buf := bytes.NewBuffer(lenghtbyte)
-	// // len, _ := binary.ReadVarint(buf)
-	// fmt.Println(length, lenghtbyte, len)
 
 	initialisationArbre()
 	affichageArbre()
@@ -1327,43 +1317,9 @@ func main() {
 	// afficheDatum(bufE)
 
 	session()
-	// justhelloplease = true // car on vas envoyer des mssg
 	wg.Add(1)
 	go waitwaitmessages()
 	fmt.Println("*********************************************************************************************")
-	// liste := chercherPairs()
-	// fmt.Printf("liste : %s\n", liste)
-	// var pair jsonPeer
-	// if liste != "" {
-	//  pair = chercherPair("miam")
-	//  // fmt.Printf("name : %s \n", pair.Name)
-	//  // i := 0
-	//  // for i = 0; i < len(pair.Addresse); i++ {
-	//  //  fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-	//  // }
-	//  // adr = fmt.Sprintf("[%s]:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
-	// }
-	// fmt.Println("*********************************************************************************************")
-	// // fmt.Println("addddddrrrrr ", adr)
-
-	// hello(pair)
-	// fmt.Println("*********************************************************************************************")
-
-	// hash := rootrequestmess(pair)
-	// fmt.Println()
-	// fmt.Println("hash ", hash)
-	// bufR := getDatumMess(pair, hash)
-	// fmt.Println("mess ", bufR)
-	// afficheDatum(pair)
-
-	// fmt.Println()
-	// ajoutMess("connection reussie", hash)
-	// affichageArbre()
-
-	// justhelloplease = false // on se met en lecture on a fini nos requete
-	// fmt.Println("requete fini ...MERCI")
-	// fmt.Println("*********************************************************************************************")
-	// fmt.Println()
 
 	wg.Wait()
 	defer conn.Close()

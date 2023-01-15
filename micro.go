@@ -1043,7 +1043,7 @@ func getDatumMess(pair jsonPeer, hash []byte) []byte {
 					if debugD {
 						fmt.Println("meme hash datum")
 					}
-					fmt.Println("recu datum correct\n")
+					fmt.Println("recu datum correct")
 					// fmt.Println("mess ", bufR)
 					// afficheDatum(bufR)
 				}
@@ -1066,7 +1066,7 @@ func getDatumMess(pair jsonPeer, hash []byte) []byte {
 				}
 				notD = true
 			}
-			fmt.Println("\n\n\n")
+			fmt.Println("\n\n")
 		}
 		// }
 		if myIP == 4 {
@@ -1301,30 +1301,6 @@ func main() {
 	// // buf := bytes.NewBuffer(lenghtbyte)
 	// // len, _ := binary.ReadVarint(buf)
 	// fmt.Println(length, lenghtbyte, len)
-
-	// initialisationArbre()
-	// affichageArbre()
-
-	// ajoutMess("beurk", vide)
-	// time.Sleep(1 * time.Second)
-	// ajoutMess("bip", vide)
-	// time.Sleep(1 * time.Second)
-	// ajoutMess("boop", vide)
-	// time.Sleep(1 * time.Second)
-	// affichageArbre()
-	// time.Sleep(1 * time.Second)
-
-	// h := sha256.Sum256(a.racine.value)
-	// ajoutMess("connection reussie", h[:])
-
-	// h = sha256.Sum256(a.racine.value)
-	// buf, n := rempDatum(h[:])
-	// fmt.Println(string(buf))
-	// fmt.Println(n)
-	// id := []byte{1, 1, 1, 1}
-	// bufE := rempMess(130, n, buf, id)
-	// fmt.Println()
-	// afficheDatum(bufE)
 
 	session()
 	justhelloplease = true // car on vas envoyer des mssg
