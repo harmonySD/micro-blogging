@@ -2,7 +2,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -48,7 +52,7 @@ type jsonMessage struct {
 
 type jsonEnregistrement struct {
 	Name string `json:"name"`
-	// Key  []byte `json:"key"`
+	Key  string `json:"key"`
 }
 type jsonPeer struct {
 	Name     string        `json:"name"`
@@ -422,17 +426,46 @@ func session() {
 	}
 
 	// enregistrement dans le serveur
-	// privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	// publicKey, _ := privateKey.Public().(*ecdsa.PublicKey)
-	// formatted := make([]byte, 64)
-	// publicKey.X.FillBytes(formatted[:32])
-	// publicKey.Y.FillBytes(formatted[32:])
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	// fileP, err := os.OpenFile("privateKey.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	// if err != nil {
+	// 	fmt.Printf("OpenFile\n")
+	// 	log.Fatal(err)
+	// }
+	// _, err = fileP.WriteString(privateKey) // écrire dans le fichier
+	// if err != nil {
+	// 	fmt.Printf("WriteString\n")
+	// 	log.Fatal(err)
+	// }
 
-	// fmt.Printf("key : %d  %s \n\n", formatted, string(formatted))
-	// var key int64 = 0
+	publicKey, _ := privateKey.Public().(*ecdsa.PublicKey)
+	formatted := make([]byte, 64)
+	publicKey.X.FillBytes(formatted[:32])
+	publicKey.Y.FillBytes(formatted[32:])
+
+	publicKeyServ := base64.RawStdEncoding.EncodeToString(formatted)
+
+	file, err := os.OpenFile("publicKey.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		fmt.Printf("OpenFile\n")
+		log.Fatal(err)
+	}
+	_, err = file.WriteString(publicKeyServ) // écrire dans le fichier
+	if err != nil {
+		fmt.Printf("WriteString\n")
+		log.Fatal(err)
+	}
+
+	fmt.Printf("key : %s %d\n\n", publicKeyServ, len(publicKeyServ))
+
+	data, err := ioutil.ReadFile("publickey.txt") // lire le fichier text.txt
+	if err != nil {
+		fmt.Printf("ReadFile\n")
+		log.Fatal(err)
+	}
 
 	//on s'enregistre sur le serveur
-	m := jsonEnregistrement{Name: name}
+	m := jsonEnregistrement{Name: name, Key: string(data)}
 	jsonValue, err := json.Marshal(m)
 	if err != nil {
 		fmt.Printf("marshal\n")
@@ -1354,18 +1387,18 @@ func main() {
 	}
 	fmt.Println("*********************************************************************************************")
 
-	hello(pair, false)
-	fmt.Println("hello ok ")
-	hash := rootrequestmess(pair)
-	fmt.Println("\nhash ", hash)
-	fmt.Println()
-	data := getDatumMess(pair, hash)
-	fmt.Println("\ndata ", data)
-	fmt.Println("************************\n\n")
-	afficheDatum(pair)
-	time.Sleep(5 * time.Second)
-	fmt.Println("\n************************")
-	afficheDatum(pair)
+	// hello(pair, false)
+	// fmt.Println("hello ok ")
+	// hash := rootrequestmess(pair)
+	// fmt.Println("\nhash ", hash)
+	// fmt.Println()
+	// data := getDatumMess(pair, hash)
+	// fmt.Println("\ndata ", data)
+	// fmt.Println("************************\n\n")
+	// afficheDatum(pair)
+	// time.Sleep(5 * time.Second)
+	// fmt.Println("\n************************")
+	// afficheDatum(pair)
 
 	justhelloplease = false // on se met en lecture on a fini nos requete
 	fmt.Println("*********************************************************************************************")
