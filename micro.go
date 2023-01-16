@@ -513,14 +513,7 @@ func waitwaitmessages() {
 					break
 				case 133: // nat s
 					fmt.Println("nat serveur recu")
-					adr := bufR[7:13] // car ipv4
-					adrtostring := string(adr)
-					adr2, err := net.ResolveUDPAddr("udp", adrtostring)
-					if err != nil {
-						fmt.Println("resolve wait")
-						log.Fatal(err)
-					}
-					helloreply(adr2, bufR, true)
+					natReceive(bufR)
 					break
 				case 2: // getdatum
 					fmt.Println("getdatum recu")
@@ -1221,6 +1214,7 @@ func natReceive(bufR []byte) {
 		println(bufR)
 	}
 	fmt.Printf("j'ai recu nat du serveur")
+	println(bufR)
 
 	portByte := (bufR[23:25])
 	buf := bytes.NewReader(portByte)

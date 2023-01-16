@@ -25,7 +25,7 @@ var debugA = false  // fonction arbre de Merkle
 var debugRQ = false // fonction root request
 var debugM = false  // fonction rempMess
 var debugD = false  // fonction datum etc
-var debugN = false  // fonction nat etc
+var debugN = true   // fonction nat etc
 var debugIP = false
 
 // variable globale
@@ -482,9 +482,9 @@ func waitwaitmessages() {
 	for {
 		if justhelloplease == true {
 			// non sol a true car on est dans le cas des hello toutes les 2sec
-			hello(serveur, false)
-		} else {
 			hello(serveur, true)
+		} else {
+			hello(serveur, false)
 		}
 
 		fmt.Println("\n")
@@ -513,14 +513,7 @@ func waitwaitmessages() {
 					break
 				case 133: // nat s
 					fmt.Println("nat serveur recu")
-					adr := bufR[7:13] // car ipv4
-					adrtostring := string(adr)
-					adr2, err := net.ResolveUDPAddr("udp", adrtostring)
-					if err != nil {
-						fmt.Println("resolve wait")
-						log.Fatal(err)
-					}
-					helloreply(adr2, bufR, true)
+					natReceive(bufR)
 					break
 				case 2: // getdatum
 					fmt.Println("getdatum recu")
@@ -1214,23 +1207,40 @@ func natReceive(bufR []byte) {
 		fmt.Println("IM HERE ")
 		println(bufR)
 	}
-	fmt.Printf("j'ai recu nat du serveur")
+	fmt.Printf("j'ai recu nat du serveur\n")
+	fmt.Println("message recu ", bufR)
+	// fmt.Println("message recu ", string(bufR[7:]))
 
-	portByte := (bufR[23:25])
-	buf := bytes.NewReader(portByte)
 	var port uint16
-	binary.Read(buf, binary.BigEndian, &port)
-	fmt.Printf("port : %d\n", port)
-
 	adrtostring := "["
-	for i := 0; i < 16; i += 2 {
-		adr := hex.EncodeToString(bufR[7+i : 7+2+i])
-		if i == 14 {
-			adrtostring = fmt.Sprintf("%s%s]", adrtostring, adr)
-		} else {
-			adrtostring = fmt.Sprintf("%s%s:", adrtostring, adr)
+	if bufR[6] == 6 {
+		portByte := (bufR[11:13])
+		fmt.Println(portByte)
+		buf := bytes.NewReader(portByte)
+		binary.Read(buf, binary.BigEndian, &port)
+		fmt.Printf("port4 : %d\n", port)
+		for i := 0; i < 4; i++ {
+			if i == 3 {
+				adrtostring = fmt.Sprintf("%s%d]", adrtostring, bufR[7+i:7+1+i])
+			} else {
+				adrtostring = fmt.Sprintf("%s%d.", adrtostring, bufR[7+i:7+1+i])
+			}
+		}
+	} else if bufR[6] == 18 {
+		portByte := (bufR[23:25])
+		buf := bytes.NewReader(portByte)
+		binary.Read(buf, binary.BigEndian, &port)
+		fmt.Printf("port6 : %d\n", port)
+		for i := 0; i < 16; i += 2 {
+			adr := hex.EncodeToString(bufR[7+i : 7+2+i])
+			if i == 14 {
+				adrtostring = fmt.Sprintf("%s%s]", adrtostring, adr)
+			} else {
+				adrtostring = fmt.Sprintf("%s%s:", adrtostring, adr)
+			}
 		}
 	}
+
 	adrtostring = fmt.Sprintf("%s:%d", adrtostring, port)
 	fmt.Printf("adr : %s\n", adrtostring)
 	adr2, err := net.ResolveUDPAddr("udp", adrtostring)
