@@ -482,9 +482,9 @@ func waitwaitmessages() {
 	for {
 		if justhelloplease == true {
 			// non sol a true car on est dans le cas des hello toutes les 2sec
-			hello(serveur, true)
-		} else {
 			hello(serveur, false)
+		} else {
+			hello(serveur, true)
 		}
 
 		fmt.Println("\n")

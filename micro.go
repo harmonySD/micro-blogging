@@ -20,7 +20,7 @@ import (
 // variable debugage
 var debug = false   // fonction session
 var debugP = false  // fonction recherche de pair
-var debugH = false  // fonction hello et helloReply
+var debugH = true   // fonction hello et helloReply
 var debugA = false  // fonction arbre de Merkle
 var debugRQ = false // fonction root request
 var debugM = false  // fonction rempMess
@@ -34,7 +34,7 @@ var justhelloplease = false // si false alors on fera tout les cas dans waitwait
 var myIP = 4
 var idMess = 300
 var a arbreMerkle // notre arbre de message
-var vide []byte
+var vide = make([]byte, 256)
 var serveur jsonPeer
 var name = "Kitty"
 var conn net.PacketConn
@@ -481,10 +481,10 @@ func waitwaitmessages() {
 	// attendre un message
 	for {
 		if justhelloplease == true {
+			hello(serveur, false)
+		} else {
 			// non sol a true car on est dans le cas des hello toutes les 2sec
 			hello(serveur, true)
-		} else {
-			hello(serveur, false)
 		}
 
 		fmt.Println("\n")
@@ -581,6 +581,7 @@ func hello(pair jsonPeer, nonsol bool) {
 		notHR := false
 		var bufE []byte
 		for brk1 != 1 {
+			fmt.Println("Debut boucle brk1 ", tps)
 			if notHR == false {
 				bufE = make([]byte, 256)
 			}
@@ -617,7 +618,7 @@ func hello(pair jsonPeer, nonsol bool) {
 				if debugH {
 					fmt.Println(bufR[:20])
 				}
-				if err != nil && tps > 20 {
+				if ((bytes.Compare(bufR[0:4], vide[0:4]) == 0) || err != nil) && tps > 20 {
 					fmt.Println("nat handshake")
 					nat(addr2)
 					for {
@@ -630,27 +631,30 @@ func hello(pair jsonPeer, nonsol bool) {
 					}
 					hello(pair, nonsol)
 					break
-				} else if err != nil {
+				} else if (bytes.Compare(bufR[0:4], vide[0:4]) == 0) || err != nil {
 					fmt.Printf("\n\nAttente\n")
 					tps = tps * 2
-					if tps > 34 {
+					if tps > 32 {
 						tps = 2
 					}
-				}
-				// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
-				if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+				} else if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
+					// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
 					fmt.Printf("recu helloreply correct\n")
 					if debugH {
 						fmt.Println("le mess dans bufR ", bufR)
 					}
 					brk1 += 1
 					tps = 2
-				} else if bufR[4] == 254 {
+				} else if bufR[4] == 254 && nonsol {
 					if nonsol {
 						fmt.Printf("message erreur hello\n")
 						fmt.Println(string(bufR[7:]))
 						//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
 					}
+					// tps = tps * 2
+					// if tps > 32 {
+					// 	tps = 2
+					// }
 					notHR = true
 				} else if bufR[4] == 133 { //cest un nat transversal ! on doit y rpondre
 					fmt.Println("nat transversal dans hello ")
@@ -681,11 +685,11 @@ func hello(pair jsonPeer, nonsol bool) {
 					}
 					notHR = true
 				} else {
-					// fmt.Printf("Erreur LA PTN\n")
-					// fmt.Println("addr", addr)
-					// fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
-					// fmt.Println((bufR[:20]))
-					//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+					fmt.Printf("Erreur LA PTN\n")
+					fmt.Println("addr", addr)
+					fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
+					fmt.Println((bufR[:20]))
+					// MASI APRESJE VEUX PAS CHANEGR LE BUFR....
 					notHR = true
 				}
 				if brk1 > 2 {
@@ -695,6 +699,7 @@ func hello(pair jsonPeer, nonsol bool) {
 			}
 		}
 		// }
+		fmt.Println("fin boucle ", tps)
 		if myIP == 4 {
 			i++
 		}
@@ -1196,12 +1201,13 @@ func nat(adr *net.UDPAddr) {
 		fmt.Printf("write\n")
 		log.Fatal(err)
 	}
-	bufR := make([]byte, 1024)
-	_, _, err = conn.ReadFrom(bufR)
-	if err == nil {
-		fmt.Println("Erreur read")
-		fmt.Println(string(bufR[7:]))
-	}
+	// bufR := make([]byte, 1024)
+	// _, _, err = conn.ReadFrom(bufR)
+	// if err == nil {
+	// 	fmt.Println("Erreur read")
+	// 	fmt.Println(string(bufR[7:]))
+	// 	fmt.Println(bufR)
+	// }
 
 	if debug {
 		fmt.Println("nat envoyer")
@@ -1311,7 +1317,7 @@ func main() {
 	fmt.Printf("liste : %s\n", liste)
 	var pair jsonPeer
 	if liste != "" {
-		pair = chercherPair("jch")
+		pair = chercherPair("Blue")
 		fmt.Printf("name : %s \n", pair.Name)
 		i := 0
 		for i = 0; i < len(pair.Addresse); i++ {
