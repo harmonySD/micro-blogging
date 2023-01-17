@@ -624,7 +624,9 @@ func hello(pair jsonPeer, nonsol bool) {
 					// }
 					// hello(pair, nonsol)
 					fmt.Println("FIIIIINIIII *********")
-					break
+					tps = 2
+					brk1 += 1
+					// break
 				} else if (bytes.Compare(bufR[0:4], vide[0:4]) == 0) || err != nil {
 					fmt.Printf("\n\nAttente\n")
 					tps = tps * 2
