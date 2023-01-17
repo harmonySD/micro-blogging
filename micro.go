@@ -20,12 +20,12 @@ import (
 // variable debugage
 var debug = false   // fonction session
 var debugP = false  // fonction recherche de pair
-var debugH = true   // fonction hello et helloReply
+var debugH = false  // fonction hello et helloReply
 var debugA = false  // fonction arbre de Merkle
 var debugRQ = false // fonction root request
 var debugM = false  // fonction rempMess
 var debugD = false  // fonction datum etc
-var debugN = false  // fonction nat etc
+var debugN = true   // fonction nat etc
 var debugIP = false
 
 // variable globale
@@ -614,15 +614,16 @@ func hello(pair jsonPeer, nonsol bool) {
 				if ((bytes.Compare(bufR[0:4], vide[0:4]) == 0) || err != nil) && tps > 20 {
 					fmt.Println("nat handshake")
 					nat(addr2)
-					for {
-						bufR := make([]byte, 256)
-						_, addr, err = conn.ReadFrom(bufR)
-						if err == nil {
-							fmt.Println(bufR)
-							break
-						}
-					}
-					hello(pair, nonsol)
+					// for {
+					// 	bufR := make([]byte, 256)
+					// 	_, addr, err = conn.ReadFrom(bufR)
+					// 	if err == nil {
+					// 		fmt.Println(bufR)
+					// 		break
+					// 	}
+					// }
+					// hello(pair, nonsol)
+					fmt.Println("FIIIIINIIII *********")
 					break
 				} else if (bytes.Compare(bufR[0:4], vide[0:4]) == 0) || err != nil {
 					fmt.Printf("\n\nAttente\n")
@@ -678,10 +679,10 @@ func hello(pair jsonPeer, nonsol bool) {
 					}
 					notHR = true
 				} else {
-					fmt.Printf("Erreur LA PTN\n")
-					fmt.Println("addr", addr)
-					fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
-					fmt.Println((bufR[:20]))
+					// fmt.Printf("Erreur LA PTN\n")
+					// fmt.Println("addr", addr)
+					// fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
+					// fmt.Println((bufR[:20]))
 					// MASI APRESJE VEUX PAS CHANEGR LE BUFR....
 					notHR = true
 				}
@@ -1150,22 +1151,38 @@ func nat(adr *net.UDPAddr) {
 
 		fmt.Println("adrPort ", adr.Port)
 	}
-	fmt.Println("tchooo")
-	buf := make([]byte, 18)
-	fmt.Println("tchooo")
-	for i := 0; i < 16; i++ {
-		if debugN {
-			fmt.Println("tchooo ", i)
-			fmt.Println(adr.IP[i+len(adr.IP)-16])
-		}
-		buf[i] = adr.IP[i+len(adr.IP)-16]
-	}
-
 	bufport := make([]byte, 2)
 	binary.BigEndian.PutUint16(bufport, uint16(adr.Port))
+	var buf []byte
+	var bufE []byte
+	if adr.IP[0] == 0 && adr.IP[1] == 0 {
+		buf = make([]byte, 6)
+		for i := 0; i < 4; i++ {
+			if debugN {
+				fmt.Println("tchooo ", i)
+				fmt.Println(adr.IP[i+len(adr.IP)-4])
+			}
+			buf[i] = adr.IP[i+len(adr.IP)-4]
+		}
 
-	buf[16] = bufport[0]
-	buf[17] = bufport[1]
+		buf[4] = bufport[0]
+		buf[5] = bufport[1]
+		bufE = rempMess(132, 6, buf, vide, true)
+	} else {
+		buf = make([]byte, 18)
+		fmt.Println("tchooo")
+		for i := 0; i < 16; i++ {
+			if debugN {
+				fmt.Println("tchooo ", i)
+				fmt.Println(adr.IP[i+len(adr.IP)-16])
+			}
+			buf[i] = adr.IP[i+len(adr.IP)-16]
+		}
+
+		buf[16] = bufport[0]
+		buf[17] = bufport[1]
+		bufE = rempMess(132, 18, buf, vide, true)
+	}
 
 	if debugN {
 		fmt.Println("bufport", bufport)
@@ -1174,7 +1191,6 @@ func nat(adr *net.UDPAddr) {
 		fmt.Println("port ", buf[4], buf[5])
 	}
 
-	bufE := rempMess(132, 18, buf, vide, true)
 	if debugN {
 		fmt.Println("mess bufE nat ", bufE)
 	}
@@ -1202,7 +1218,7 @@ func nat(adr *net.UDPAddr) {
 	// 	fmt.Println(bufR)
 	// }
 
-	if debug {
+	if debugN {
 		fmt.Println("nat envoyer")
 	}
 }
@@ -1322,17 +1338,17 @@ func main() {
 	fmt.Println("*********************************************************************************************")
 
 	hello(pair, false)
-	fmt.Println("hello ok ")
-	hash := rootrequestmess(pair)
-	fmt.Println("\nhash ", hash)
-	fmt.Println()
-	data := getDatumMess(pair, hash)
-	fmt.Println("\ndata ", data)
-	fmt.Println("************************\n\n")
-	afficheDatum(pair)
-	time.Sleep(5 * time.Second)
-	fmt.Println("\n************************")
-	afficheDatum(pair)
+	fmt.Println("hello ok lelellclkzc,nfvvrybzvjzrbvnc eaqnk")
+	// hash := rootrequestmess(pair)
+	// fmt.Println("\nhash ", hash)
+	// fmt.Println()
+	// data := getDatumMess(pair, hash)
+	// fmt.Println("\ndata ", data)
+	// fmt.Println("************************\n\n")
+	// afficheDatum(pair)
+	// time.Sleep(5 * time.Second)
+	// fmt.Println("\n************************")
+	// afficheDatum(pair)
 
 	justhelloplease = false // on se met en lecture on a fini nos requete
 	fmt.Println("*********************************************************************************************")

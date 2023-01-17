@@ -1221,9 +1221,9 @@ func natReceive(bufR []byte) {
 		fmt.Printf("port4 : %d\n", port)
 		for i := 0; i < 4; i++ {
 			if i == 3 {
-				adrtostring = fmt.Sprintf("%s%d]", adrtostring, bufR[7+i:7+1+i])
+				adrtostring = fmt.Sprintf("%s%d]", adrtostring, bufR[7+i])
 			} else {
-				adrtostring = fmt.Sprintf("%s%d.", adrtostring, bufR[7+i:7+1+i])
+				adrtostring = fmt.Sprintf("%s%d.", adrtostring, bufR[7+i])
 			}
 		}
 	} else if bufR[6] == 18 {
