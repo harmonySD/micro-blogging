@@ -481,10 +481,30 @@ func waitwaitmessages() {
 	// attendre un message
 	for {
 		if justhelloplease == true {
-			hello(serveur, false)
+			for i := 0; i < len(serveur.Addresse); i++ {
+				addrconn := fmt.Sprintf("[%s]:%d", serveur.Addresse[i].Host, serveur.Addresse[i].Port)
+				addr2, err := net.ResolveUDPAddr("udp", addrconn)
+				if err != nil {
+					fmt.Printf("resolve udp\n")
+					log.Fatal(err)
+				}
+
+				helloreply(addr2, vide, true)
+			}
+			// hello(serveur, false)
 		} else {
 			// non sol a true car on est dans le cas des hello toutes les 2sec
-			hello(serveur, true)
+			for i := 0; i < len(serveur.Addresse); i++ {
+				addrconn := fmt.Sprintf("[%s]:%d", serveur.Addresse[i].Host, serveur.Addresse[i].Port)
+				addr2, err := net.ResolveUDPAddr("udp", addrconn)
+				if err != nil {
+					fmt.Printf("resolve udp\n")
+					log.Fatal(err)
+				}
+
+				helloreply(addr2, vide, true)
+			}
+
 		}
 
 		fmt.Println("\n")
@@ -611,7 +631,7 @@ func hello(pair jsonPeer, nonsol bool) {
 				if debugH {
 					fmt.Println(bufR[:20])
 				}
-				if ((bytes.Compare(bufR[0:4], vide[0:4]) == 0) || err != nil) && tps > 20 {
+				if ((bytes.Compare(bufR[0:4], vide[0:4]) == 0) || err != nil) && tps > 15 {
 					fmt.Println("nat handshake")
 					nat(addr2)
 					// for {
@@ -1341,8 +1361,8 @@ func main() {
 
 	hello(pair, false)
 	fmt.Println("hello ok lelellclkzc,nfvvrybzvjzrbvnc eaqnk")
-	// hash := rootrequestmess(pair)
-	// fmt.Println("\nhash ", hash)
+	hash := rootrequestmess(pair)
+	fmt.Println("\nhash ", hash)
 	// fmt.Println()
 	// data := getDatumMess(pair, hash)
 	// fmt.Println("\ndata ", data)
