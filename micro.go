@@ -583,6 +583,7 @@ func hello(pair jsonPeer, nonsol bool) {
 			fmt.Printf("addrconn %s \n", addrconn)
 			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 		}
+		// fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 		addr2, err := net.ResolveUDPAddr("udp", addrconn)
 		if err != nil {
 			fmt.Printf("resolve udp\n")
@@ -1190,6 +1191,21 @@ func nat(adr *net.UDPAddr) {
 		buf[4] = bufport[0]
 		buf[5] = bufport[1]
 		bufE = rempMess(132, 6, buf, vide, true)
+		serverADDRESS := fmt.Sprintf("[%s]:%d", serveur.Addresse[0].Host, serveur.Addresse[0].Port)
+		server, err := net.ResolveUDPAddr("udp", serverADDRESS)
+		if err != nil {
+			fmt.Println("Resolveudp NAT")
+			log.Fatal(err)
+		}
+		_, err = conn.WriteTo(bufE, server)
+		if debug {
+			fmt.Println("serveur ip", server.IP)
+			fmt.Println("serveur port", server.Port)
+		}
+		if err != nil {
+			fmt.Printf("write\n")
+			log.Fatal(err)
+		}
 	} else {
 		buf = make([]byte, 18)
 		fmt.Println("tchooo")
@@ -1204,6 +1220,21 @@ func nat(adr *net.UDPAddr) {
 		buf[16] = bufport[0]
 		buf[17] = bufport[1]
 		bufE = rempMess(132, 18, buf, vide, true)
+		serverADDRESS := fmt.Sprintf("[%s]:%d", serveur.Addresse[1].Host, serveur.Addresse[1].Port)
+		server, err := net.ResolveUDPAddr("udp", serverADDRESS)
+		if err != nil {
+			fmt.Println("Resolveudp NAT")
+			log.Fatal(err)
+		}
+		_, err = conn.WriteTo(bufE, server)
+		if debug {
+			fmt.Println("serveur ip", server.IP)
+			fmt.Println("serveur port", server.Port)
+		}
+		if err != nil {
+			fmt.Printf("write\n")
+			log.Fatal(err)
+		}
 	}
 
 	if debugN {
@@ -1217,21 +1248,21 @@ func nat(adr *net.UDPAddr) {
 		fmt.Println("mess bufE nat ", bufE)
 	}
 
-	serverADDRESS := fmt.Sprintf("[%s]:%d", serveur.Addresse[0].Host, serveur.Addresse[0].Port)
-	server, err := net.ResolveUDPAddr("udp", serverADDRESS)
-	if err != nil {
-		fmt.Println("Resolveudp NAT")
-		log.Fatal(err)
-	}
-	_, err = conn.WriteTo(bufE, server)
-	if debug {
-		fmt.Println("serveur ip", server.IP)
-		fmt.Println("serveur port", server.Port)
-	}
-	if err != nil {
-		fmt.Printf("write\n")
-		log.Fatal(err)
-	}
+	// serverADDRESS := fmt.Sprintf("[%s]:%d", serveur.Addresse[0].Host, serveur.Addresse[0].Port)
+	// server, err := net.ResolveUDPAddr("udp", serverADDRESS)
+	// if err != nil {
+	// 	fmt.Println("Resolveudp NAT")
+	// 	log.Fatal(err)
+	// }
+	// _, err = conn.WriteTo(bufE, server)
+	// if debug {
+	// 	fmt.Println("serveur ip", server.IP)
+	// 	fmt.Println("serveur port", server.Port)
+	// }
+	// if err != nil {
+	// 	fmt.Printf("write\n")
+	// 	log.Fatal(err)
+	// }
 	// bufR := make([]byte, 1024)
 	// _, _, err = conn.ReadFrom(bufR)
 	// if err == nil {
@@ -1349,7 +1380,7 @@ func main() {
 	fmt.Printf("liste : %s\n", liste)
 	var pair jsonPeer
 	if liste != "" {
-		pair = chercherPair("Blue")
+		pair = chercherPair("Pink")
 		fmt.Printf("name : %s \n", pair.Name)
 		i := 0
 		for i = 0; i < len(pair.Addresse); i++ {
@@ -1363,14 +1394,14 @@ func main() {
 	fmt.Println("hello ok lelellclkzc,nfvvrybzvjzrbvnc eaqnk")
 	hash := rootrequestmess(pair)
 	fmt.Println("\nhash ", hash)
-	// fmt.Println()
-	// data := getDatumMess(pair, hash)
-	// fmt.Println("\ndata ", data)
-	// fmt.Println("************************\n\n")
-	// afficheDatum(pair)
-	// time.Sleep(5 * time.Second)
-	// fmt.Println("\n************************")
-	// afficheDatum(pair)
+	fmt.Println()
+	data := getDatumMess(pair, hash)
+	fmt.Println("\ndata ", data)
+	fmt.Println("************************\n\n")
+	afficheDatum(pair)
+	time.Sleep(5 * time.Second)
+	fmt.Println("\n************************")
+	afficheDatum(pair)
 
 	justhelloplease = false // on se met en lecture on a fini nos requete
 	fmt.Println("*********************************************************************************************")
