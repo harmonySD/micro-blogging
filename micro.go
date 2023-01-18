@@ -758,7 +758,7 @@ func rootrequestmess(pair jsonPeer) []byte {
 		for brk1 != 1 {
 			if notRQ == false {
 				// fmt.Println("ce rempmess")
-				bufE = rempMess(1, 0, vide, vide, false)
+				bufE = rempMess(1, 0, vide, vide)
 				if debugRQ {
 					fmt.Println("root request mess : dans bufE ", bufE)
 				}
