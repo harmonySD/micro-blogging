@@ -131,7 +131,7 @@ func rempMessArbre(mess string, rep []byte) []byte {
 
 	buf[0] = 0
 	now := time.Now()
-	janvier := time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)
+	janvier := time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
 	date := now.Sub(janvier)
 	sec := date.Seconds()
 	if debugA {
@@ -218,7 +218,6 @@ func rempMess(typMess int, length int, body []byte, id []byte, nonsol bool) []by
 	}
 
 	// // id+type+length+taillebody
-	// // ATTENTION MANQUE SIGNATURE
 	buflen := 4 + 1 + 2 + length
 	buf := make([]byte, buflen)
 
@@ -377,7 +376,6 @@ func handshake(addrconn string) {
 			break
 		}
 	}
-	// defer conn.Close()
 }
 
 // enregistrement au serveur
@@ -576,14 +574,12 @@ func hello(pair jsonPeer, nonsol bool) {
 		indxdep = nbAdd - 2
 	}
 	for i := indxdep; i < len(pair.Addresse); i++ {
-		// if strings.Contains(pair.Addresse[i].Host, ":") {
 		addrconn := fmt.Sprintf("[%s]:%d", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
 		if debugH {
 			fmt.Printf("addrconn %s \n", addrconn)
 			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 		}
-		// fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
 		addr2, err := net.ResolveUDPAddr("udp", addrconn)
 		if err != nil {
 			fmt.Printf("resolve udp\n")
@@ -663,15 +659,11 @@ func hello(pair jsonPeer, nonsol bool) {
 					brk1 += 1
 					tps = 2
 				} else if bufR[4] == 254 && nonsol {
-					if nonsol {
+					if debugH {
 						fmt.Printf("message erreur hello\n")
 						fmt.Println(string(bufR[7:]))
-						//MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+						// MAIS APRESJE VEUX PAS CHANEGR LE BUFR....
 					}
-					// tps = tps * 2
-					// if tps > 32 {
-					// 	tps = 2
-					// }
 					notHR = true
 				} else if bufR[4] == 133 { //cest un nat transversal ! on doit y rpondre
 					fmt.Println("nat transversal dans hello ")
@@ -692,21 +684,22 @@ func hello(pair jsonPeer, nonsol bool) {
 					notHR = true
 				} else if bufR[4] == 2 {
 					fmt.Println("getdatum recu dans hello")
-					//verif qu'on a le hash
+					// verif qu'on a le hash
 					hashrecu := bufR[7:39]
 					if goodhash(hashrecu) == true {
-						//datummess
 						datumMess(addr, bufR)
 					} else {
 						noDatumMess(addr, bufR)
 					}
 					notHR = true
 				} else {
-					// fmt.Printf("Erreur LA PTN\n")
-					// fmt.Println("addr", addr)
-					// fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
-					// fmt.Println((bufR[:20]))
-					// MASI APRESJE VEUX PAS CHANEGR LE BUFR....
+					if debugH {
+						fmt.Printf("Erreur !!!!\n")
+						fmt.Println("addr", addr)
+						fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
+						fmt.Println((bufR[:20]))
+						// MAIS APRES JE VEUX PAS CHANEGR LE BUFR....
+					}
 					notHR = true
 				}
 				if brk1 > 2 {
@@ -715,7 +708,6 @@ func hello(pair jsonPeer, nonsol bool) {
 				}
 			}
 		}
-		// }
 		fmt.Println("fin boucle ", tps)
 		if myIP == 4 {
 			i++
@@ -763,7 +755,6 @@ func rootrequestmess(pair jsonPeer) []byte {
 		indxdep = nbAdd - 2
 	}
 	for i := indxdep; i < len(pair.Addresse); i++ {
-		// if strings.Contains(pair.Addresse[i].Host, ":") {
 		addrconn := fmt.Sprintf("[%s]:%d", pair.Addresse[i].Host, pair.Addresse[i].Port)
 
 		if debugRQ {
@@ -781,9 +772,7 @@ func rootrequestmess(pair jsonPeer) []byte {
 		notRQ := false
 		var bufE []byte
 		for brk1 != 1 {
-			// fmt.Println("boucleeee")
 			if notRQ == false {
-				// fmt.Println("ce rempmess")
 				bufE = rempMess(1, 0, vide, vide, false)
 				if debugRQ {
 					fmt.Println("root request mess : dans bufE ", bufE)
@@ -838,12 +827,10 @@ func rootrequestmess(pair jsonPeer) []byte {
 				break
 			}
 		}
-		// }
 		if myIP == 4 {
 			i++
 		}
 	}
-	// fmt.Println("je susi sortiiiiie")
 	return rep
 }
 
@@ -928,7 +915,6 @@ func afficheDatum(pair jsonPeer) {
 		hash = hashArbre[0]
 		hashArbre = append(hashArbre[:0], hashArbre[1:]...)
 		bufR := getDatumMess(pair, hash[:])
-		// fmt.Println("len hashArbre ", len(hashArbre))
 		// pas une reponse Nodatum
 		if bufR != nil {
 			lenghtbyte := bufR[5:7]
@@ -936,7 +922,6 @@ func afficheDatum(pair jsonPeer) {
 			var n uint16
 			binary.Read(buf, binary.BigEndian, &n)
 			if debugD {
-				// fmt.Println("mess ", bufR)
 				fmt.Println("hash ", hash)
 				fmt.Println("len hashArbre ", len(hashArbre))
 				fmt.Println("\ntaille ", lenghtbyte)
@@ -948,7 +933,7 @@ func afficheDatum(pair jsonPeer) {
 			deb := 4 + 1 + 2 + 32
 			if bufR[deb] == 0 {
 				deb += 1
-				janvier := time.Date(2022, time.January, 1, 0, 0, 0, 0, time.UTC)
+				janvier := time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
 				dateB := bufR[deb:(deb + 4)]
 				buf = bytes.NewReader(dateB)
 				var dateS uint32
@@ -1396,7 +1381,7 @@ func main() {
 	fmt.Printf("liste : %s\n", liste)
 	var pair jsonPeer
 	if liste != "" {
-		pair = chercherPair("Pink")
+		pair = chercherPair("jch")
 		fmt.Printf("name : %s \n", pair.Name)
 		i := 0
 		for i = 0; i < len(pair.Addresse); i++ {
