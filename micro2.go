@@ -34,7 +34,7 @@ var justhelloplease = false // si false alors on fera tout les cas dans waitwait
 var myIP = 4
 var idMess = 300
 var a arbreMerkle // notre arbre de message
-var vide []byte
+var vide = make([]byte, 256)
 var serveur jsonPeer
 var name = "Purple"
 var conn net.PacketConn
@@ -440,7 +440,7 @@ func session() {
 	// limitPort := 65535 - 1024
 	// i := r.Intn(limitPort) + 1024
 	// port := fmt.Sprintf(":%d", i)
-	port := fmt.Sprintf(":%d", 9859)
+	port := fmt.Sprintf(":%d", 19859)
 	if debug {
 		fmt.Printf("port : %s\n", port)
 	}
