@@ -1395,19 +1395,9 @@ func main() {
 		}
 		myIP = 6
 	}
-	// length := 257
-	// lenghtbyte := make([]byte, 2)
-	// binary.BigEndian.PutUint16(lenghtbyte, uint16(length))
-	// nowBuffer := bytes.NewReader(lenghtbyte)
-	// var len uint16
-	// binary.Read(nowBuffer, binary.BigEndian, &len)
 
-	// // buf := bytes.NewBuffer(lenghtbyte)
-	// // len, _ := binary.ReadVarint(buf)
-	// fmt.Println(length, lenghtbyte, len)
-
-	// initialisationArbre()
-	// affichageArbre()
+	initialisationArbre()
+	affichageArbre()
 
 	ajoutMess("hello", vide)
 	time.Sleep(1 * time.Second)
@@ -1433,6 +1423,8 @@ func main() {
 		}
 
 	}
+
+	// envoie de requete de maniere manuelle
 
 	// justhelloplease = true // car on vas envoyer des mssg
 	// // wg.Add(1)
