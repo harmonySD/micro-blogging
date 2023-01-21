@@ -495,8 +495,8 @@ func waitwaitmessages() {
 			bufR := make([]byte, 256)
 			_, addr, err := conn.ReadFrom(bufR)
 			if err != nil { // rien recu
-				//fmt.Printf("read\n")
-				//log.Fatal(err)
+				// fmt.Printf("read\n")
+				// log.Fatal(err)
 			} else {
 				switch bufR[4] {
 				case 0: // hello
@@ -574,8 +574,8 @@ func hello(pair jsonPeer) {
 
 		brk1 := 0 // == 1 si on a recu un helloreply
 		tps := 2
-		notHR := false //mis a true si on recoit un message different de hello reply
-		//permet de ne pas renvoyer de hello inutile
+		notHR := false // mis a true si on recoit un message different de hello reply
+		// permet de ne pas renvoyer de hello inutile
 		var bufE []byte
 		for brk1 != 1 {
 			if notHR == false {
@@ -746,7 +746,7 @@ func rootrequestmess(pair jsonPeer) []byte {
 		}
 		tps := 2
 		brk1 := 0      // ==1 si on a recu rootReply
-		notRQ := false //est mis a true si on a lu une reponse autre que rootreply
+		notRQ := false // est mis a true si on a lu une reponse autre que rootreply
 		var bufE []byte
 		for brk1 != 1 {
 			if notRQ == false {
@@ -1336,6 +1336,7 @@ func choix(mess string, scanner *bufio.Scanner) {
 						}
 					}
 					hello(pair)
+					fmt.Println("Connection établi via hello et helloreply à ", pair.Name)
 					justhelloplease = false
 				}
 
@@ -1359,7 +1360,6 @@ func choix(mess string, scanner *bufio.Scanner) {
 								justhelloplease = true
 								afficheDatum(pair)
 								justhelloplease = false
-								// fmt.Println("\ndata ", data)
 								break
 							case "2":
 								sortir = true
