@@ -37,7 +37,7 @@ var idMess = 100
 var a arbreMerkle // notre arbre de message
 var vide = make([]byte, 256)
 var serveur jsonPeer
-var name = "Kitty"
+var name = "poireau"
 var conn net.PacketConn
 var messArbre [][]byte // savoir si les messages ont ete mis a jour, on garde en memoire les anciens
 
@@ -570,7 +570,8 @@ func hello(pair jsonPeer) {
 
 		brk1 := 0 // == 1 si on a recu un helloreply
 		tps := 2
-		notHR := false
+		notHR := false //mis a true si on recoit un message different de hello reply
+		//permet de ne pas renvoyer de hello inutile
 		var bufE []byte
 		for brk1 != 1 {
 			if notHR == false {
@@ -738,8 +739,8 @@ func rootrequestmess(pair jsonPeer) []byte {
 			log.Fatal(err)
 		}
 		tps := 2
-		brk1 := 0 // ==1 si on a recu rootReply
-		notRQ := false
+		brk1 := 0      // ==1 si on a recu rootReply
+		notRQ := false //est mis a true si on a lu une reponse autre que rootreply
 		var bufE []byte
 		for brk1 != 1 {
 			if notRQ == false {
@@ -1114,8 +1115,6 @@ func nat(adr *net.UDPAddr) {
 	// implementer dans waitwait le cas si je recoit le nat transerval server 133
 	// alors je doit reagir en envoyant helloreply a A
 	// un peu plus tard A (moi) envoie une requete hello a B
-
-	// remplir message
 	if debugN {
 		fmt.Println("adr ", adr)
 		fmt.Println("adrIP taille ", len(adr.IP))
@@ -1308,6 +1307,17 @@ func main() {
 	// // len, _ := binary.ReadVarint(buf)
 	// fmt.Println(length, lenghtbyte, len)
 
+	initialisationArbre()
+	affichageArbre()
+
+	ajoutMess("hello", vide)
+	time.Sleep(1 * time.Second)
+	ajoutMess("guten tag", vide)
+	// time.Sleep(1 * time.Second)
+	ajoutMess("bonjouuuur", vide)
+	time.Sleep(1 * time.Second)
+	affichageArbre()
+
 	session()
 	justhelloplease = true // car on vas envoyer des mssg
 	wg.Add(1)
@@ -1317,7 +1327,7 @@ func main() {
 	fmt.Printf("liste : %s\n", liste)
 	var pair jsonPeer
 	if liste != "" {
-		pair = chercherPair("jch")
+		pair = chercherPair("bet")
 		fmt.Printf("name : %s \n", pair.Name)
 		i := 0
 		for i = 0; i < len(pair.Addresse); i++ {
@@ -1326,7 +1336,7 @@ func main() {
 		// adr = fmt.Sprintf("[%s]:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
 	}
 	fmt.Println("*********************************************************************************************")
-
+	time.Sleep(8 * time.Second)
 	hello(pair)
 	fmt.Println("hello ok lelellclkzc,nfvvrybzvjzrbvnc eaqnk")
 	hash := rootrequestmess(pair)
