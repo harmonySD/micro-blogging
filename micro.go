@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
@@ -39,6 +40,7 @@ var vide = make([]byte, 256)
 var serveur jsonPeer
 var name = "poireau"
 var conn net.PacketConn
+var pair jsonPeer
 var messArbre [][]byte // savoir si les messages ont ete mis a jour, on garde en memoire les anciens
 
 type jsonMessage struct {
@@ -261,7 +263,9 @@ func rempMess(typMess int, length int, body []byte, id []byte) []byte {
 		}
 		i += length
 	} else if typMess == 128 || typMess == 0 { // cas helloreply et hello
-		fmt.Println("remp mess hello/helloreply")
+		if debugM {
+			fmt.Println("remp mess hello/helloreply")
+		}
 		// Flags
 		for k := 0; k < 4; k++ {
 			buf[k+i] = 0
@@ -333,7 +337,9 @@ func handshake(addrconn string) {
 				fmt.Printf("write\n")
 				log.Fatal(err)
 			}
-			fmt.Printf("hello envoye !\n")
+			if debugH {
+				fmt.Printf("hello envoye !\n")
+			}
 		}
 
 		if debugH {
@@ -351,8 +357,8 @@ func handshake(addrconn string) {
 			}
 		} else if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
 			// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
-			fmt.Printf("recu helloreply correct\n")
 			if debugH {
+				fmt.Printf("recu helloreply correct\n")
 				fmt.Println("le mess dans bufR ", bufR)
 			}
 			brk1 += 1
@@ -486,7 +492,6 @@ func waitwaitmessages() {
 			ajoutMess(string(lettre), vide)
 			lettre += 1
 		}
-		fmt.Println("\n")
 		if justhelloplease == false {
 			bufR := make([]byte, 256)
 			_, addr, err := conn.ReadFrom(bufR)
@@ -591,7 +596,9 @@ func hello(pair jsonPeer) {
 						fmt.Printf("write\n")
 						log.Fatal(err)
 					}
-					fmt.Printf("hello envoye !\n")
+					if debugH {
+						fmt.Printf("hello envoye !\n")
+					}
 				}
 			}
 			if debugH {
@@ -628,8 +635,9 @@ func hello(pair jsonPeer) {
 				}
 			} else if (bytes.Compare(bufR[0:4], bufE[0:4]) == 0) && (bufR[4] == 128) {
 				// verif que cest bien un helloreply (donc type 128) et id du hello = id du helloreply
-				fmt.Printf("recu helloreply correct\n")
+
 				if debugH {
+					fmt.Printf("recu helloreply correct\n")
 					fmt.Println("le mess dans bufR ", bufR)
 				}
 				brk1 += 1
@@ -665,7 +673,6 @@ func hello(pair jsonPeer) {
 				}
 				notHR = true
 			} else {
-				// fmt.Printf("Erreur LA PTN\n")
 				// fmt.Println("addr", addr)
 				// fmt.Println("(bufR[0:4] %d, bufE[0:4])%d", bufR[0:4], bufE[0:4])
 				// fmt.Println((bufR[:20]))
@@ -788,7 +795,6 @@ func rootrequestmess(pair jsonPeer) []byte {
 				fmt.Println("le mess dans bufR ", bufR)
 				notRQ = true
 			}
-			fmt.Println("\n")
 			if brk1 == 1 {
 				break
 			}
@@ -1042,7 +1048,6 @@ func getDatumMess(pair jsonPeer, hash []byte) []byte {
 				}
 				notD = true
 			}
-			fmt.Println("\n\n")
 		}
 		if myIP == 4 {
 			i++
@@ -1288,6 +1293,89 @@ func chercherPair(username string) jsonPeer {
 	return pair
 }
 
+func choix(mess string, scanner *bufio.Scanner) {
+	// fmt.Printf("Pour poster un message, taper 1\nPour faire une requete, taper 2\n")
+	// if scanner.Scan() {
+	// 	line := scanner.Text()
+	switch mess {
+	case "1": // message
+		fmt.Printf("Taper votre message\n")
+		if scanner.Scan() {
+
+		}
+		break
+	case "2": // requete
+		fmt.Printf("Pour se connecter a un pair, taper 1\nPour faire une demande de racine (rootrequest), taper 2\n")
+		if scanner.Scan() {
+			line := scanner.Text()
+			switch line {
+			case "1":
+				fmt.Printf("Taper le nom du pair a contacter parmis: \n")
+				liste := chercherPairs()
+				fmt.Printf("%s\n", liste)
+				if scanner.Scan() {
+					pairdemander := scanner.Text()
+					if liste != "" {
+						justhelloplease = true // car on vas envoyer des mssg
+						pair = chercherPair(pairdemander)
+						fmt.Printf("name : %s \n", pair.Name)
+						i := 0
+						for i = 0; i < len(pair.Addresse); i++ {
+							fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+						}
+					}
+					hello(pair)
+					justhelloplease = false
+				}
+
+				break
+			case "2":
+				if len(pair.Name) == 0 {
+					fmt.Println("Connecter vous d'abord a un pair !!")
+				} else {
+					justhelloplease = true // car on vas envoyer des mssg
+					hash := rootrequestmess(pair)
+					fmt.Println("\nhash ", hash)
+					fmt.Println()
+					justhelloplease = false
+					sortir := false
+					for !sortir {
+						fmt.Printf("Envoyer une demande de données (getdatum), taper 1\n Sinon pour sortir taper  2\n")
+						if scanner.Scan() {
+							rep := scanner.Text()
+							switch rep {
+							case "1":
+								justhelloplease = true
+								data := getDatumMess(pair, hash)
+								justhelloplease = false
+								fmt.Println("\ndata ", data)
+								break
+							case "2":
+								sortir = true
+								break
+							default:
+								fmt.Printf("Numero inconnu !")
+								break
+							}
+						}
+					}
+				}
+				break
+			default:
+				fmt.Printf("Numero inconnu !")
+				break
+
+			}
+		}
+
+		break
+	default:
+		fmt.Printf("Numero inconnu !")
+		break
+	}
+	// }
+}
+
 func main() {
 	arg1 := os.Args[1]
 	if arg1 == "6" {
@@ -1307,8 +1395,8 @@ func main() {
 	// // len, _ := binary.ReadVarint(buf)
 	// fmt.Println(length, lenghtbyte, len)
 
-	initialisationArbre()
-	affichageArbre()
+	// initialisationArbre()
+	// affichageArbre()
 
 	ajoutMess("hello", vide)
 	time.Sleep(1 * time.Second)
@@ -1319,40 +1407,56 @@ func main() {
 	affichageArbre()
 
 	session()
-	justhelloplease = true // car on vas envoyer des mssg
 	wg.Add(1)
 	go waitwaitmessages()
-	fmt.Println("*********************************************************************************************")
-	liste := chercherPairs()
-	fmt.Printf("liste : %s\n", liste)
-	var pair jsonPeer
-	if liste != "" {
-		pair = chercherPair("bet")
-		fmt.Printf("name : %s \n", pair.Name)
-		i := 0
-		for i = 0; i < len(pair.Addresse); i++ {
-			fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
-		}
-		// adr = fmt.Sprintf("[%s]:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
-	}
-	fmt.Println("*********************************************************************************************")
-	time.Sleep(8 * time.Second)
-	hello(pair)
-	fmt.Println("hello ok lelellclkzc,nfvvrybzvjzrbvnc eaqnk")
-	hash := rootrequestmess(pair)
-	fmt.Println("\nhash ", hash)
-	fmt.Println()
-	data := getDatumMess(pair, hash)
-	fmt.Println("\ndata ", data)
-	fmt.Println("************************\n\n")
-	afficheDatum(pair)
-	time.Sleep(5 * time.Second)
-	fmt.Println("\n************************")
-	afficheDatum(pair)
 
-	justhelloplease = false // on se met en lecture on a fini nos requete
-	fmt.Println("*********************************************************************************************")
-	fmt.Println("requete fini ...MERCI")
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Printf("Pour envoyer un message (1), une requete (2), ecrire dans le terminal le numero correspondant, sinon vous etes en attente de message.\n")
+		if scanner.Scan() {
+
+			line := scanner.Text()
+			fmt.Printf("%s\n", line)
+			choix(line, scanner)
+			fmt.Println("*********************************************************************************************")
+		}
+
+	}
+
+	// justhelloplease = true // car on vas envoyer des mssg
+	// // wg.Add(1)
+	// // go waitwaitmessages()
+	// fmt.Println("*********************************************************************************************")
+	// liste := chercherPairs()
+	// fmt.Printf("liste : %s\n", liste)
+	// var pair jsonPeer
+	// if liste != "" {
+	// 	pair = chercherPair("bet")
+	// 	fmt.Printf("name : %s \n", pair.Name)
+	// 	i := 0
+	// 	for i = 0; i < len(pair.Addresse); i++ {
+	// 		fmt.Printf("ip : %s \n port: %d\n", pair.Addresse[i].Host, pair.Addresse[i].Port)
+	// 	}
+	// 	// adr = fmt.Sprintf("[%s]:%d", pair.Addresse[i-1].Host, pair.Addresse[i-1].Port)
+	// }
+	// fmt.Println("*********************************************************************************************")
+	// time.Sleep(8 * time.Second)
+	// hello(pair)
+	// fmt.Println("hello ok lelellclkzc,nfvvrybzvjzrbvnc eaqnk")
+	// hash := rootrequestmess(pair)
+	// fmt.Println("\nhash ", hash)
+	// fmt.Println()
+	// data := getDatumMess(pair, hash)
+	// fmt.Println("\ndata ", data)
+	// fmt.Println("************************\n\n")
+	// afficheDatum(pair)
+	// time.Sleep(5 * time.Second)
+	// fmt.Println("\n************************")
+	// afficheDatum(pair)
+
+	// justhelloplease = false // on se met en lecture on a fini nos requete
+	// fmt.Println("*********************************************************************************************")
+	// fmt.Println("requete fini ...MERCI")
 
 	wg.Wait()
 	defer conn.Close()
