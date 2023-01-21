@@ -38,7 +38,7 @@ var idMess = 100
 var a arbreMerkle // notre arbre de message
 var vide = make([]byte, 256)
 var serveur jsonPeer
-var name = "poireau"
+var name = "Blue"
 var conn net.PacketConn
 var pair jsonPeer
 var messArbre [][]byte // savoir si les messages ont ete mis a jour, on garde en memoire les anciens
@@ -474,7 +474,6 @@ func waitwaitmessages() {
 	// attendre un message
 	for {
 		if justhelloplease == true {
-			// non sol a true car on est dans le cas des hello toutes les 2sec
 			for i := 0; i < len(serveur.Addresse); i++ {
 				addrconn := fmt.Sprintf("[%s]:%d", serveur.Addresse[i].Host, serveur.Addresse[i].Port)
 				addr2, err := net.ResolveUDPAddr("udp", addrconn)
@@ -716,7 +715,7 @@ func helloreply(adr net.Addr, bufR []byte) {
 		fmt.Printf("write\n")
 		log.Fatal(err)
 	}
-	fmt.Printf("helloReply envoye\n")
+	fmt.Println("helloReply envoye\n")
 }
 
 // demande de rootrequest
@@ -1299,9 +1298,21 @@ func choix(mess string, scanner *bufio.Scanner) {
 	// 	line := scanner.Text()
 	switch mess {
 	case "1": // message
-		fmt.Printf("Taper votre message\n")
+		fmt.Printf("Pour écrire un message, taper 1\nPour avoir la liste de vos messages, taper 2\n")
 		if scanner.Scan() {
-
+			line := scanner.Text()
+			switch line {
+			case "1":
+				fmt.Printf("Taper votre message\n")
+				if scanner.Scan() {
+					line := scanner.Text()
+					ajoutMess(line, vide)
+				}
+				break
+			case "2":
+				affichageArbre()
+				break
+			}
 		}
 		break
 	case "2": // requete
@@ -1346,9 +1357,9 @@ func choix(mess string, scanner *bufio.Scanner) {
 							switch rep {
 							case "1":
 								justhelloplease = true
-								data := getDatumMess(pair, hash)
+								afficheDatum(pair)
 								justhelloplease = false
-								fmt.Println("\ndata ", data)
+								// fmt.Println("\ndata ", data)
 								break
 							case "2":
 								sortir = true
